@@ -44,6 +44,20 @@ impl Poly {
             var_dict: var_dict.clone(),
         }
     }
+
+    pub fn get_constant_val(&self) -> Option<i64> {
+        if self.terms.is_empty() {
+            Some(0)
+        } else if self.terms.len() == 1 {
+            if self.terms[0].vars.is_empty() {
+                Some(self.terms[0].coef)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }
 
 impl fmt::Debug for Poly {
