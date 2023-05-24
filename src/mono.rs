@@ -1,14 +1,16 @@
 use serde::Serialize;
 use std::cmp::Ordering;
-use std::fmt::Write;
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct Mono {
-    coef: i64,
-    vars: Vec<(usize, u64)>,
+    pub coef: i64,
+    pub vars: Vec<(usize, u64)>,
 }
 
+#[cfg(test)]
 pub fn print_exps(term: &Mono, var_dict: &[String]) -> String {
+    use std::fmt::Write;
+
     let mut res = String::new();
 
     for (var, pow) in &term.vars {
@@ -22,11 +24,7 @@ pub fn print_exps(term: &Mono, var_dict: &[String]) -> String {
     res
 }
 
-pub fn grevlex(
-    lhs: &Mono,
-    rhs: &Mono,
-    var_dict: &[String],
-) -> Ordering {
+pub fn grevlex(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Ordering {
     let lhs_total_degree = lhs.vars.iter().fold(0, |acc, (_, pow)| acc + pow);
     let rhs_total_degree = rhs.vars.iter().fold(0, |acc, (_, pow)| acc + pow);
 
@@ -57,7 +55,7 @@ pub fn monomial_div(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Option<Mono>
     } else if matches!(lhs, Mono { coef: 0, .. }) {
         Some(Mono {
             coef: 0,
-            vars: vec![]
+            vars: vec![],
         })
     } else if lhs.coef % rhs.coef == 0 {
         let coef = lhs.coef / rhs.coef;
@@ -108,7 +106,10 @@ pub fn monomial_div(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Option<Mono>
 
 pub fn monomial_mul(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Mono {
     let coef = if lhs.coef == 0 || rhs.coef == 0 {
-        return Mono { coef: 0, vars: vec![] }
+        return Mono {
+            coef: 0,
+            vars: vec![],
+        };
     } else {
         lhs.coef * rhs.coef
     };
@@ -122,24 +123,27 @@ pub fn monomial_mul(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Mono {
         if lhs_var_ind < lhs.vars.len() && rhs_var_ind < rhs.vars.len() {
             match var_dict[lhs.vars[lhs_var_ind].0].cmp(&var_dict[rhs.vars[rhs_var_ind].0]) {
                 Ordering::Equal => {
-                    vars.push((lhs.vars[lhs_var_ind].0, lhs.vars[lhs_var_ind].1 + rhs.vars[rhs_var_ind].1));
+                    vars.push((
+                        lhs.vars[lhs_var_ind].0,
+                        lhs.vars[lhs_var_ind].1 + rhs.vars[rhs_var_ind].1,
+                    ));
                     lhs_var_ind += 1;
                     rhs_var_ind += 1;
                 }
                 Ordering::Greater => {
-                    vars.push(rhs.vars[rhs_var_ind].clone());
+                    vars.push(rhs.vars[rhs_var_ind]);
                     rhs_var_ind += 1;
                 }
                 Ordering::Less => {
-                    vars.push(lhs.vars[lhs_var_ind].clone());
+                    vars.push(lhs.vars[lhs_var_ind]);
                     lhs_var_ind += 1;
                 }
             }
         } else if lhs_var_ind < lhs.vars.len() {
-            vars.push(lhs.vars[lhs_var_ind].clone());
+            vars.push(lhs.vars[lhs_var_ind]);
             lhs_var_ind += 1;
         } else if rhs_var_ind < rhs.vars.len() {
-            vars.push(rhs.vars[rhs_var_ind].clone());
+            vars.push(rhs.vars[rhs_var_ind]);
             rhs_var_ind += 1;
         }
     }
@@ -149,25 +153,30 @@ pub fn monomial_mul(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Mono {
 
 #[cfg(test)]
 mod tests {
-    use super::{Mono, grevlex, print_exps, monomial_div, monomial_mul};
+    use rand::prelude::*;
+
+    use super::*;
 
     #[test]
     fn ordering() {
         let var_dict = ["x".to_string(), "y".to_string(), "z".to_string()];
         let mut terms = vec![];
-        
+
         for i in 0..4 {
             for j in 0..4 {
                 for k in 0..4 {
                     let mut vars = vec![];
-                    if i > 0 { vars.push((0, i))}
-                    if j > 0 { vars.push((1, j))}
-                    if k > 0 { vars.push((2, k))}
+                    if i > 0 {
+                        vars.push((0, i))
+                    }
+                    if j > 0 {
+                        vars.push((1, j))
+                    }
+                    if k > 0 {
+                        vars.push((2, k))
+                    }
 
-                    terms.push(Mono {
-                        coef: 1,
-                        vars
-                    });
+                    terms.push(Mono { coef: 1, vars });
                 }
             }
         }
@@ -237,7 +246,9 @@ y
 z
 
 
-".split("\n").collect::<Vec<_>>();
+"
+        .split("\n")
+        .collect::<Vec<_>>();
 
         terms.sort_by(|a, b| grevlex(a, b, &var_dict));
 
@@ -248,31 +259,44 @@ z
 
     #[test]
     fn div_mul_fuzz() {
-        use rand::prelude::*;
-
         let mut rng = SmallRng::seed_from_u64(1);
 
-        let var_dict = ["w".to_string(), "x".to_string(), "y".to_string(), "z".to_string()];
+        let var_dict = [
+            "w".to_string(),
+            "x".to_string(),
+            "y".to_string(),
+            "z".to_string(),
+        ];
 
         fn random_mono(rng: &mut SmallRng, min_coef: i32, max_coef: i32) -> Mono {
             let coef = rng.gen_range(min_coef..max_coef);
-            
+
             let mut vars = vec![];
 
             let wpow = rng.gen_range(0..3);
-            if wpow > 0 { vars.push((0, wpow)); }
-            
+            if wpow > 0 {
+                vars.push((0, wpow));
+            }
+
             let xpow = rng.gen_range(0..1);
-            if xpow > 0 { vars.push((1, xpow)); }
-            
+            if xpow > 0 {
+                vars.push((1, xpow));
+            }
+
             let ypow = rng.gen_range(0..1);
-            if ypow > 0 { vars.push((2, ypow)); }
-            
+            if ypow > 0 {
+                vars.push((2, ypow));
+            }
+
             let zpow = rng.gen_range(0..2);
-            if zpow > 0 { vars.push((3, zpow)); }
+            if zpow > 0 {
+                vars.push((3, zpow));
+            }
 
-
-            Mono { coef: coef as i64, vars: if coef == 0 { vec![] } else { vars } }
+            Mono {
+                coef: coef as i64,
+                vars: if coef == 0 { vec![] } else { vars },
+            }
         }
 
         for _i in 0..1000 {
