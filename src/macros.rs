@@ -155,7 +155,13 @@ macro_rules! system {
                         }
                     ).collect::<VecDeque<_>>();
 
-                    Poly { terms, var_dict: var_dict.clone() }
+                    let mut acc = Poly::constant(0, &var_dict);
+
+                    for term in terms {
+                        acc = acc + Poly { terms: VecDeque::from(vec![term]), var_dict: var_dict.clone() };
+                    }
+
+                    acc
                 })
                 .collect::<Vec<_>>()
         }
