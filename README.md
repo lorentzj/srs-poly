@@ -10,10 +10,10 @@ let sys = srs_poly::system!(
 );
 
 println!("{:?}", sys.members);
-println!("{:?}", sys.members[0].try_divide(&sys.members[1]));
+println!("{:?}", sys.get(0).try_divide(&sys.get(1)));
 println!(
     "{:?}",
-    sys.members[0].clone() * sys.constant(5) - sys.members[1].clone() + sys.var("a", 2)
+    sys.get(0) * sys.constant(5) - sys.get(1) + sys.var("a", 2)
 );
 ```
 

@@ -15,7 +15,8 @@ impl Poly {
         if pow == 0 {
             Self {
                 terms: VecDeque::from(vec![Mono {
-                    coef: 1,
+                    num: 1,
+                    den: 1,
                     vars: vec![],
                 }]),
                 var_dict: var_dict.clone(),
@@ -23,7 +24,8 @@ impl Poly {
         } else {
             Self {
                 terms: VecDeque::from(vec![Mono {
-                    coef: 1,
+                    num: 1,
+                    den: 1,
                     vars: vec![(var, pow)],
                 }]),
                 var_dict: var_dict.clone(),
@@ -37,7 +39,8 @@ impl Poly {
                 VecDeque::new()
             } else {
                 VecDeque::from(vec![Mono {
-                    coef: val,
+                    num: val,
+                    den: 1,
                     vars: vec![],
                 }])
             },
@@ -45,12 +48,12 @@ impl Poly {
         }
     }
 
-    pub fn get_constant_val(&self) -> Option<i64> {
+    pub fn get_constant_val(&self) -> Option<(i64, i64)> {
         if self.terms.is_empty() {
-            Some(0)
+            Some((0, 1))
         } else if self.terms.len() == 1 {
             if self.terms[0].vars.is_empty() {
-                Some(self.terms[0].coef)
+                Some((self.terms[0].num, self.terms[0].den))
             } else {
                 None
             }
@@ -66,10 +69,11 @@ impl fmt::Debug for Poly {
             write!(f, "0")?
         }
 
-        for (i, Mono { coef, vars }) in (self.terms).iter().enumerate() {
-            if *coef != 1 || vars.is_empty() {
-                if *coef < 0 {
-                    if *coef == -1 && !vars.is_empty() {
+        for (i, Mono { num, den, vars }) in (self.terms).iter().enumerate() {
+            let coef = (*num as f64)/(*den as f64);
+            if coef != 1. || vars.is_empty() {
+                if coef < 0. {
+                    if coef == -1. && !vars.is_empty() {
                         if i == 0 {
                             write!(f, "-")?;
                         } else {

@@ -22,10 +22,19 @@ impl ops::Add<Poly> for Poly {
                 if let Some(rhs_term) = rhs_term_iter.peek() {
                     match grevlex(lhs_term, rhs_term, &rhs.var_dict) {
                         Ordering::Equal => {
-                            let new_coef = lhs_term.coef + rhs_term.coef;
-                            if new_coef != 0 {
+                            let den_gcd = gcd(lhs_term.den, rhs_term.den);
+                            let (new_num, new_den) = {
+                                let new_num = lhs_term.num/den_gcd*rhs_term.den + rhs_term.num/den_gcd*lhs_term.den;
+                                let new_den = lhs_term.den/den_gcd*rhs_term.den;
+                                
+                                let new_gcd = gcd(new_num, new_den);
+                                (new_num/new_gcd, new_den/new_gcd)
+                            };                        
+
+                            if new_num != 0 {
                                 new_terms.push_back(Mono {
-                                    coef: new_coef,
+                                    num: new_num,
+                                    den: new_den,
                                     vars: lhs_term.vars.clone(),
                                 });
                             }
@@ -106,7 +115,7 @@ impl Poly {
 
         let mut curr_divisor = 0;
 
-        while dividend.get_constant_val() != Some(0) {
+        while dividend.get_constant_val() != Some((0, 1)) {
             let self_lt = dividend.terms[0].clone();
             if !divisors[curr_divisor].terms.is_empty() {
                 let div_lt = &divisors[curr_divisor].terms[0];
@@ -150,7 +159,7 @@ impl Poly {
     pub fn try_divide(&self, divisor: &Poly) -> Option<Poly> {
         let (quots, rem) = self.compound_divide(vec![divisor.clone()]);
 
-        if let Some(0) = rem.get_constant_val() {
+        if let Some((0, 1)) = rem.get_constant_val() {
             Some(quots[0].clone())
         } else {
             None

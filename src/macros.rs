@@ -148,7 +148,8 @@ macro_rules! system {
                 .map(|monos| {
                     let terms = monos.into_iter().map(|(coef, vars)|
                         Mono {
-                            coef,
+                            num: coef,
+                            den: 1,
                             vars: vars.into_iter()
                                 .map(|(var, pow)| (var_dict.iter().position(|v| v == var).unwrap(), pow))
                                 .collect()

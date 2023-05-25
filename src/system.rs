@@ -17,4 +17,8 @@ impl System {
             None => panic!("variable {} not in system variable dict", var),
         }
     }
+
+    pub fn get(&self, i: usize) -> Poly {
+        self.members[i].clone()
+    }
 }

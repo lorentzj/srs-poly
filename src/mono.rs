@@ -1,9 +1,23 @@
 use serde::Serialize;
 use std::cmp::Ordering;
 
+// Euclid's algorithm
+pub fn gcd(mut a: i64, mut b: i64) -> i64 {
+    let mut t: i64;
+
+    while b != 0 {
+        t = b;
+        b = a % b;
+        a = t;
+    }
+
+    a
+}
+
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct Mono {
-    pub coef: i64,
+    pub num: i64,
+    pub den: i64,
     pub vars: Vec<(usize, u64)>,
 }
 
@@ -50,15 +64,19 @@ pub fn grevlex(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Ordering {
 }
 
 pub fn monomial_div(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Option<Mono> {
-    if matches!(rhs, Mono { coef: 0, .. }) {
+    if matches!(rhs, Mono { num: 0, .. }) {
         None
-    } else if matches!(lhs, Mono { coef: 0, .. }) {
+    } else if matches!(lhs, Mono { num: 0, .. }) {
         Some(Mono {
-            coef: 0,
+            num: 0,
+            den: 1,
             vars: vec![],
         })
-    } else if lhs.coef % rhs.coef == 0 {
-        let coef = lhs.coef / rhs.coef;
+    } else {
+        let num = lhs.num * rhs.den;
+        let den = lhs.den * rhs.num;
+        let coef_gcd = gcd(num, den);
+        let (num, den) = (num/coef_gcd, den/coef_gcd);
 
         let mut lhs_var_iter = lhs.vars.iter().peekable();
         let mut rhs_var_iter = rhs.vars.iter().peekable();
@@ -98,20 +116,23 @@ pub fn monomial_div(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Option<Mono>
             vars.push((*lhs_var, *lhs_pow));
         }
 
-        Some(Mono { coef, vars })
-    } else {
-        None
+        Some(Mono { num, den, vars })
     }
 }
 
 pub fn monomial_mul(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Mono {
-    let coef = if lhs.coef == 0 || rhs.coef == 0 {
+    let (num, den) = if lhs.num == 0 || rhs.num == 0 {
         return Mono {
-            coef: 0,
+            num: 0,
+            den: 1,
             vars: vec![],
         };
     } else {
-        lhs.coef * rhs.coef
+        let num = lhs.num * rhs.num;
+        let den = lhs.den * rhs.den;
+        let coef_gcd = gcd(num, den);
+
+        (num/coef_gcd, den/coef_gcd)
     };
 
     let mut vars = vec![];
@@ -148,7 +169,7 @@ pub fn monomial_mul(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Mono {
         }
     }
 
-    Mono { coef, vars }
+    Mono { num, den, vars }
 }
 
 #[cfg(test)]
@@ -176,7 +197,7 @@ mod tests {
                         vars.push((2, k))
                     }
 
-                    terms.push(Mono { coef: 1, vars });
+                    terms.push(Mono { num: 1, den: 1, vars });
                 }
             }
         }
@@ -294,7 +315,8 @@ z
             }
 
             Mono {
-                coef: coef as i64,
+                num: coef as i64,
+                den: 1,
                 vars: if coef == 0 { vec![] } else { vars },
             }
         }
