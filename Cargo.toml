@@ -1,8 +1,8 @@
 [package]
-name = "srs-poly"
+name = "srs_poly"
 version = "0.1.0"
 edition = "2021"
-description = "utilities for polynomial systems"
+description = "utilities for integer polynomial systems"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

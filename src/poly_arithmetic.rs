@@ -146,6 +146,16 @@ impl Poly {
 
         (quotients, rem)
     }
+
+    pub fn try_divide(&self, divisor: &Poly) -> Option<Poly> {
+        let (quots, rem) = self.compound_divide(vec![divisor.clone()]);
+
+        if let Some(0) = rem.get_constant_val() {
+            Some(quots[0].clone())
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
