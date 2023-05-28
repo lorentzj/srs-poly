@@ -76,7 +76,11 @@ pub fn monomial_div(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Option<Mono>
         let num = lhs.num * rhs.den;
         let den = lhs.den * rhs.num;
         let coef_gcd = gcd(num, den);
-        let (num, den) = (num/coef_gcd, den/coef_gcd);
+        let (num, den) = if den / coef_gcd > 0 {
+            (num / coef_gcd, den / coef_gcd)
+        } else {
+            (-num / coef_gcd, -den / coef_gcd)
+        };
 
         let mut lhs_var_iter = lhs.vars.iter().peekable();
         let mut rhs_var_iter = rhs.vars.iter().peekable();
@@ -132,7 +136,11 @@ pub fn monomial_mul(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Mono {
         let den = lhs.den * rhs.den;
         let coef_gcd = gcd(num, den);
 
-        (num/coef_gcd, den/coef_gcd)
+        if den / coef_gcd > 0 {
+            (num / coef_gcd, den / coef_gcd)
+        } else {
+            (-num / coef_gcd, -den / coef_gcd)
+        }
     };
 
     let mut vars = vec![];
@@ -172,6 +180,49 @@ pub fn monomial_mul(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Mono {
     Mono { num, den, vars }
 }
 
+// ignore coef, just applied to vars
+pub fn monomial_lcm(lhs: Mono, rhs: Mono, var_dict: &[String]) -> Mono {
+    let mut vars = vec![];
+
+    let mut lhs_var_ind = 0;
+    let mut rhs_var_ind = 0;
+
+    while lhs_var_ind < lhs.vars.len() || rhs_var_ind < rhs.vars.len() {
+        if lhs_var_ind < lhs.vars.len() && rhs_var_ind < rhs.vars.len() {
+            match var_dict[lhs.vars[lhs_var_ind].0].cmp(&var_dict[rhs.vars[rhs_var_ind].0]) {
+                Ordering::Equal => {
+                    vars.push((
+                        lhs.vars[lhs_var_ind].0,
+                        lhs.vars[lhs_var_ind].1.max(rhs.vars[rhs_var_ind].1),
+                    ));
+                    lhs_var_ind += 1;
+                    rhs_var_ind += 1;
+                }
+                Ordering::Greater => {
+                    vars.push(rhs.vars[rhs_var_ind]);
+                    rhs_var_ind += 1;
+                }
+                Ordering::Less => {
+                    vars.push(lhs.vars[lhs_var_ind]);
+                    lhs_var_ind += 1;
+                }
+            }
+        } else if lhs_var_ind < lhs.vars.len() {
+            vars.push(lhs.vars[lhs_var_ind]);
+            lhs_var_ind += 1;
+        } else if rhs_var_ind < rhs.vars.len() {
+            vars.push(rhs.vars[rhs_var_ind]);
+            rhs_var_ind += 1;
+        }
+    }
+
+    Mono {
+        num: 1,
+        den: 1,
+        vars,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rand::prelude::*;
@@ -197,7 +248,11 @@ mod tests {
                         vars.push((2, k))
                     }
 
-                    terms.push(Mono { num: 1, den: 1, vars });
+                    terms.push(Mono {
+                        num: 1,
+                        den: 1,
+                        vars,
+                    });
                 }
             }
         }

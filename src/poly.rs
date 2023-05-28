@@ -61,6 +61,89 @@ impl Poly {
             None
         }
     }
+
+    pub fn lt(&self) -> Poly {
+        match self.terms.front() {
+            Some(m) => Poly {
+                terms: VecDeque::from(vec![m.clone()]),
+                var_dict: self.var_dict.clone(),
+            },
+            None => Poly {
+                terms: VecDeque::from(vec![]),
+                var_dict: self.var_dict.clone(),
+            },
+        }
+    }
+
+    pub fn lt_mono(&self) -> Mono {
+        match self.terms.front() {
+            Some(m) => m.clone(),
+            None => Mono {
+                num: 0,
+                den: 1,
+                vars: vec![],
+            },
+        }
+    }
+
+    pub fn s_poly(p: Poly, q: Poly) -> Poly {
+        let p_lt = p.lt();
+        let q_lt = q.lt();
+
+        let lcm_lmp_lmq = Poly {
+            terms: VecDeque::from(vec![monomial_lcm(
+                p_lt.lt_mono(),
+                q_lt.lt_mono(),
+                &p.var_dict,
+            )]),
+            var_dict: p.var_dict.clone(),
+        };
+
+        if let (Some(coef_p), Some(coef_q)) =
+            (lcm_lmp_lmq.try_divide(&p_lt), lcm_lmp_lmq.try_divide(&q_lt))
+        {
+            coef_p * p - coef_q * q
+        } else {
+            unreachable!()
+        }
+    }
+
+    pub fn norm(&self) -> Poly {
+        let mut new = self.clone();
+
+        let mut all_terms_den = 1;
+        let mut all_terms_gcd = 1;
+
+        if let Some(t) = new.terms.front() {
+            all_terms_gcd = t.num;
+        }
+
+        for term in &new.terms {
+            all_terms_den *= term.den / gcd(all_terms_den, term.den);
+        }
+
+        for term in &mut new.terms {
+            let term_gcd = gcd(term.num * all_terms_den, term.den);
+            term.num = term.num * all_terms_den / term_gcd;
+            term.den = 1;
+
+            all_terms_gcd = gcd(term.num, all_terms_gcd);
+        }
+
+        if let Some(t) = new.terms.front_mut() {
+            if t.num < 0 {
+                all_terms_gcd = -all_terms_gcd.abs();
+            } else {
+                all_terms_gcd = all_terms_gcd.abs();
+            }
+        }
+
+        for term in &mut new.terms {
+            term.num /= all_terms_gcd;
+        }
+
+        new
+    }
 }
 
 impl fmt::Debug for Poly {
@@ -70,7 +153,7 @@ impl fmt::Debug for Poly {
         }
 
         for (i, Mono { num, den, vars }) in (self.terms).iter().enumerate() {
-            let coef = (*num as f64)/(*den as f64);
+            let coef = (*num as f64) / (*den as f64);
             if coef != 1. || vars.is_empty() {
                 if coef < 0. {
                     if coef == -1. && !vars.is_empty() {

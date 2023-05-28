@@ -23,13 +23,19 @@ impl ops::Add<Poly> for Poly {
                     match grevlex(lhs_term, rhs_term, &rhs.var_dict) {
                         Ordering::Equal => {
                             let den_gcd = gcd(lhs_term.den, rhs_term.den);
+
                             let (new_num, new_den) = {
-                                let new_num = lhs_term.num/den_gcd*rhs_term.den + rhs_term.num/den_gcd*lhs_term.den;
-                                let new_den = lhs_term.den/den_gcd*rhs_term.den;
-                                
+                                let new_num = lhs_term.num * rhs_term.den / den_gcd
+                                    + rhs_term.num * lhs_term.den / den_gcd;
+                                let new_den = lhs_term.den * rhs_term.den / den_gcd;
+
                                 let new_gcd = gcd(new_num, new_den);
-                                (new_num/new_gcd, new_den/new_gcd)
-                            };                        
+                                if new_den / new_gcd > 0 {
+                                    (new_num / new_gcd, new_den / new_gcd)
+                                } else {
+                                    (-new_num / new_gcd, -new_den / new_gcd)
+                                }
+                            };
 
                             if new_num != 0 {
                                 new_terms.push_back(Mono {
@@ -101,7 +107,7 @@ impl ops::Mul<Poly> for Poly {
 }
 
 impl Poly {
-    pub fn compound_divide(&self, divisors: Vec<Poly>) -> (Vec<Poly>, Poly) {
+    pub fn compound_divide(&self, divisors: &Vec<Poly>) -> (Vec<Poly>, Poly) {
         if divisors.is_empty() {
             return (vec![], self.clone());
         }
@@ -157,7 +163,7 @@ impl Poly {
     }
 
     pub fn try_divide(&self, divisor: &Poly) -> Option<Poly> {
-        let (quots, rem) = self.compound_divide(vec![divisor.clone()]);
+        let (quots, rem) = self.compound_divide(&vec![divisor.clone()]);
 
         if let Some((0, 1)) = rem.get_constant_val() {
             Some(quots[0].clone())
@@ -208,11 +214,11 @@ mod tests {
         ) -> Poly {
             let mut p = Poly::constant(0, var_dict);
 
-            for _ in 0..rng.gen_range(0..term_max) {
+            for _ in 0..rng.gen_range(0..term_max + 1) {
                 let coef = rng.gen_range(-6..6);
-                let xpow = rng.gen_range(0..3);
-                let ypow = rng.gen_range(0..1);
-                let zpow = rng.gen_range(0..2);
+                let xpow = rng.gen_range(0..4);
+                let ypow = rng.gen_range(0..2);
+                let zpow = rng.gen_range(0..3);
 
                 p = p + Poly::constant(coef, var_dict)
                     * Poly::var(0, xpow, var_dict)
@@ -224,14 +230,14 @@ mod tests {
         }
 
         for _ in 0..1000 {
-            let dividend = create_random_poly(&mut rng, 2, &var_dict);
+            let dividend = create_random_poly(&mut rng, 6, &var_dict);
             let n_divs = rng.gen_range(0..4);
             let divisors: Vec<_> =
-                std::iter::repeat_with(|| create_random_poly(&mut rng, 1, &var_dict))
+                std::iter::repeat_with(|| create_random_poly(&mut rng, 4, &var_dict))
                     .take(n_divs)
                     .collect();
 
-            let (quotients, rem) = dividend.clone().compound_divide(divisors.clone());
+            let (quotients, rem) = dividend.clone().compound_divide(&divisors);
 
             let calculated_dividend = quotients
                 .clone()

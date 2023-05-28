@@ -1,17 +1,13 @@
 extern crate srs_poly;
+use srs_poly::system;
 
 #[test]
-fn macros() {
-    let sys = srs_poly::system!(
-        a^2 - b^2*c^2,
-        a + b*c,
-        2*a + 3*b^2 + c + 10    
-    );
+fn gb() {
+    let sys = system! {
+        3*x + y^2 + 2*z^3,
+        x - y + 3*z + 5,
+        2*x - 2*y + 3
+    };
 
-    println!("{:?}", sys.members);
-    println!("{:?}", sys.get(0).try_divide(&sys.get(1)));
-    println!(
-        "{:?}",
-        sys.get(0) * sys.constant(5) - sys.get(1) + sys.var("a", 2)
-    );
+    println!("{:?}", sys.gb().members);
 }

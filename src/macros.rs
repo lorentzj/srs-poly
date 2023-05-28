@@ -146,14 +146,15 @@ macro_rules! system {
             members: raw_polys
                 .into_iter()
                 .map(|monos| {
-                    let terms = monos.into_iter().map(|(coef, vars)|
+                    let terms = monos.into_iter().map(|(coef, mut vars)| {
+                        vars.sort_by(|a, b| a.0.cmp(b.0));
                         Mono {
                             num: coef,
                             den: 1,
                             vars: vars.into_iter()
                                 .map(|(var, pow)| (var_dict.iter().position(|v| v == var).unwrap(), pow))
                                 .collect()
-                        }
+                        }}
                     ).collect::<VecDeque<_>>();
 
                     let mut acc = Poly::constant(0, &var_dict);
