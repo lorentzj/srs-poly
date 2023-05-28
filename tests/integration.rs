@@ -9,5 +9,8 @@ fn gb() {
         2*x - 2*y + 3
     };
 
-    println!("{:?}", sys.gb().members);
+    assert_eq!(
+        "[108y^2 + 324y - 829, 2x - 2y + 3, 6z + 7]",
+        format!("{:?}", sys.gb().members)
+    );
 }
