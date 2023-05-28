@@ -8,14 +8,14 @@ use srs_poly::system;
 #[test]
 fn gb() {
     let sys = system! {
-        3*x + y^2 + 2*z^3,
-        x - y + 3*z + 5,
-        2*x - 2*y + 3
+        x^2*y + 1,
+        2*x + y*z - 1,
+        x - y^2*z^2 + 1
     };
 
     // groebner basis
     assert_eq!(
-        "[108y^2 + 324y - 829, 2x - 2y + 3, 6z + 7]",
+        "[4x - 5, 25y + 16, 32z - 75]",
         format!("{:?}", sys.gb().members)
     );
 }
