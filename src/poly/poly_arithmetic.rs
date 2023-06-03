@@ -1,17 +1,14 @@
 use std::cmp::Ordering;
 use std::collections::VecDeque;
 use std::ops;
-use std::rc::Rc;
 
-use crate::mono::*;
-use crate::poly::*;
+use crate::poly::mono::*;
+use crate::poly::poly::*;
 
 impl ops::Add<Poly> for Poly {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
-        assert!(Rc::ptr_eq(&self.var_dict, &rhs.var_dict));
-
         let mut new_terms = VecDeque::from(vec![]);
 
         let mut lhs_term_iter = self.terms.into_iter().peekable();
@@ -20,7 +17,7 @@ impl ops::Add<Poly> for Poly {
         loop {
             if let Some(lhs_term) = lhs_term_iter.peek() {
                 if let Some(rhs_term) = rhs_term_iter.peek() {
-                    match grevlex(lhs_term, rhs_term, &rhs.var_dict) {
+                    match grevlex(lhs_term, rhs_term) {
                         Ordering::Equal => {
                             let den_gcd = gcd(lhs_term.den, rhs_term.den);
 
@@ -70,7 +67,6 @@ impl ops::Add<Poly> for Poly {
 
         Self {
             terms: new_terms,
-            var_dict: self.var_dict,
         }
     }
 }
@@ -79,23 +75,21 @@ impl ops::Sub<Poly> for Poly {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self {
-        Self::constant(-1, &self.var_dict) * rhs + self
+        Self::constant(-1) * rhs + self
     }
 }
 
 impl ops::Mul<Poly> for Poly {
     type Output = Self;
 
+    #[warn(clippy::suspicious_arithmetic_impl)]
     fn mul(self, rhs: Self) -> Self {
-        assert!(Rc::ptr_eq(&self.var_dict, &rhs.var_dict));
-
-        let mut new = Self::constant(0, &self.var_dict);
+        let mut new = Self::constant(0);
 
         for lhs_term in self.terms {
             for rhs_term in &rhs.terms {
                 let new_term = Poly {
-                    terms: VecDeque::from(vec![monomial_mul(&lhs_term, rhs_term, &self.var_dict)]),
-                    var_dict: self.var_dict.clone(),
+                    terms: VecDeque::from(vec![monomial_mul(&lhs_term, rhs_term)])
                 };
 
                 new = new + new_term;
@@ -114,8 +108,8 @@ impl Poly {
 
         let mut dividend = self.clone();
 
-        let mut rem = Poly::constant(0, &self.var_dict);
-        let mut quotients: Vec<_> = std::iter::repeat(Poly::constant(0, &self.var_dict))
+        let mut rem = Poly::constant(0);
+        let mut quotients: Vec<_> = std::iter::repeat(Poly::constant(0))
             .take(divisors.len())
             .collect();
 
@@ -125,7 +119,7 @@ impl Poly {
             let self_lt = dividend.terms[0].clone();
             if !divisors[curr_divisor].terms.is_empty() {
                 let div_lt = &divisors[curr_divisor].terms[0];
-                let self_over_div_lt = monomial_div(&self_lt, div_lt, &self.var_dict);
+                let self_over_div_lt = monomial_div(&self_lt, div_lt);
 
                 if let Some(self_over_div_lt) = self_over_div_lt {
                     quotients[curr_divisor]
@@ -134,7 +128,6 @@ impl Poly {
 
                     let self_over_div_lt = Poly {
                         terms: VecDeque::from(vec![self_over_div_lt]),
-                        var_dict: self.var_dict.clone(),
                     };
 
                     dividend = dividend - (self_over_div_lt * divisors[curr_divisor].clone());
@@ -149,7 +142,6 @@ impl Poly {
             if curr_divisor == divisors.len() {
                 let self_lt = Poly {
                     terms: VecDeque::from(vec![self_lt.clone()]),
-                    var_dict: self.var_dict.clone(),
                 };
 
                 dividend.terms.pop_front();
@@ -171,6 +163,35 @@ impl Poly {
             None
         }
     }
+
+    pub fn derivative(&self, by: usize) -> Poly {
+        let mut new_terms = VecDeque::new();
+        for term in &self.terms {
+            let mut new_term = Mono { num: term.num, den: term.den, vars: vec![] };
+            let mut found = false;
+            for (var, pow) in &term.vars {
+                if *var == by {
+                    found = true;
+                    if *pow > 1 {
+                        if new_term.den % (*pow as i64) == 0 {
+                            new_term.den /= *pow as i64;
+                        } else {
+                            new_term.num *= *pow as i64;
+                        }
+                        new_term.vars.push((*var, *pow - 1));
+                    }
+                } else {
+                    new_term.vars.push((*var, *pow));
+                }
+            }
+
+            if found {
+                new_terms.push_back(new_term);
+            }
+        }
+
+        Poly { terms: new_terms }
+    }
 }
 
 #[cfg(test)]
@@ -184,19 +205,19 @@ mod tests {
     fn arith() {
         let var_dict = Rc::new(vec!["a".to_string(), "b".to_string(), "c".to_string()]);
 
-        let a = Poly::var(0, 2, &var_dict) * Poly::constant(3, &var_dict);
-        let b = Poly::var(1, 1, &var_dict) * Poly::constant(4, &var_dict);
-        let c = Poly::constant(2, &var_dict);
+        let a = Poly::var(0, 2) * Poly::constant(3);
+        let b = Poly::var(1, 1) * Poly::constant(4);
+        let c = Poly::constant(2);
 
-        assert_eq!("3a^2 + 4b + 2", format!("{:?}", c + b + a));
+        assert_eq!("3a^2 + 4b + 2", (c + b + a).format(&var_dict));
 
         // (a + 1)(a + 1)
-        let a = (Poly::var(0, 1, &var_dict) + Poly::constant(1, &var_dict))
-            * (Poly::var(0, 1, &var_dict) + Poly::constant(1, &var_dict));
+        let a = (Poly::var(0, 1) + Poly::constant(1))
+            * (Poly::var(0, 1) + Poly::constant(1));
         // a^2 + 2a + 1
-        let b = Poly::var(0, 2, &var_dict)
-            + Poly::constant(2, &var_dict) * Poly::var(0, 1, &var_dict)
-            + Poly::constant(1, &var_dict);
+        let b = Poly::var(0, 2)
+            + Poly::constant(2) * Poly::var(0, 1)
+            + Poly::constant(1);
 
         assert!(a == b);
     }
@@ -205,14 +226,11 @@ mod tests {
     fn arith_fuzz() {
         let mut rng = SmallRng::seed_from_u64(1);
 
-        let var_dict = Rc::new(vec!["x".to_string(), "y".to_string(), "z".to_string()]);
-
         fn create_random_poly(
             rng: &mut SmallRng,
-            term_max: i32,
-            var_dict: &Rc<Vec<String>>,
+            term_max: i32
         ) -> Poly {
-            let mut p = Poly::constant(0, var_dict);
+            let mut p = Poly::constant(0);
 
             for _ in 0..rng.gen_range(0..term_max + 1) {
                 let coef = rng.gen_range(-6..6);
@@ -220,20 +238,20 @@ mod tests {
                 let ypow = rng.gen_range(0..2);
                 let zpow = rng.gen_range(0..3);
 
-                p = p + Poly::constant(coef, var_dict)
-                    * Poly::var(0, xpow, var_dict)
-                    * Poly::var(1, ypow, var_dict)
-                    * Poly::var(2, zpow, var_dict);
+                p = p + Poly::constant(coef)
+                    * Poly::var(0, xpow)
+                    * Poly::var(1, ypow)
+                    * Poly::var(2, zpow);
             }
 
             p
         }
 
         for _ in 0..1000 {
-            let dividend = create_random_poly(&mut rng, 6, &var_dict);
+            let dividend = create_random_poly(&mut rng, 6);
             let n_divs = rng.gen_range(0..4);
             let divisors: Vec<_> =
-                std::iter::repeat_with(|| create_random_poly(&mut rng, 4, &var_dict))
+                std::iter::repeat_with(|| create_random_poly(&mut rng, 4))
                     .take(n_divs)
                     .collect();
 
@@ -243,14 +261,23 @@ mod tests {
                 .clone()
                 .into_iter()
                 .zip(divisors.clone())
-                .fold(Poly::constant(0, &var_dict), |acc, (x, y)| acc + x * y)
+                .fold(Poly::constant(0), |acc, (x, y)| acc + x * y)
                 + rem.clone();
 
-            assert_eq!(
-                calculated_dividend, dividend,
-                "tried dividing {:?} by {:?}; got {:?} and rem {:?}",
-                dividend, divisors, quotients, rem
-            );
+            assert_eq!(calculated_dividend, dividend);
         }
+    }
+
+    #[test] 
+    fn derivative() {
+        let var_dict = vec![
+            "x".to_string(),
+            "y".to_string(),
+            "z".to_string(),
+        ];
+
+        let p = Poly::var(0, 2) * Poly::var(1, 2) * Poly::constant(3) + Poly::var(0, 1) * Poly::var(2, 1);
+
+        assert_eq!("6xy^2 + z", format!("{}", p.derivative(0).format(&var_dict)));
     }
 }

@@ -1,25 +1,22 @@
-use serde::{Serialize, Serializer};
-use std::fmt;
-use std::{collections::VecDeque, rc::Rc};
+use std::collections::VecDeque;
+use std::fmt::Write;
 
-use crate::mono::*;
+use crate::poly::mono::*;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Poly {
-    pub terms: VecDeque<Mono>,
-    pub var_dict: Rc<Vec<String>>,
+    pub terms: VecDeque<Mono>
 }
 
 impl Poly {
-    pub fn var(var: usize, pow: u64, var_dict: &Rc<Vec<String>>) -> Self {
+    pub fn var(var: usize, pow: u64) -> Self {
         if pow == 0 {
             Self {
                 terms: VecDeque::from(vec![Mono {
                     num: 1,
                     den: 1,
                     vars: vec![],
-                }]),
-                var_dict: var_dict.clone(),
+                }])
             }
         } else {
             Self {
@@ -27,13 +24,12 @@ impl Poly {
                     num: 1,
                     den: 1,
                     vars: vec![(var, pow)],
-                }]),
-                var_dict: var_dict.clone(),
+                }])
             }
         }
     }
 
-    pub fn constant(val: i64, var_dict: &Rc<Vec<String>>) -> Self {
+    pub fn constant(val: i64) -> Self {
         Self {
             terms: if val == 0 {
                 VecDeque::new()
@@ -43,8 +39,7 @@ impl Poly {
                     den: 1,
                     vars: vec![],
                 }])
-            },
-            var_dict: var_dict.clone(),
+            }
         }
     }
 
@@ -65,12 +60,10 @@ impl Poly {
     pub fn lt(&self) -> Poly {
         match self.terms.front() {
             Some(m) => Poly {
-                terms: VecDeque::from(vec![m.clone()]),
-                var_dict: self.var_dict.clone(),
+                terms: VecDeque::from(vec![m.clone()])
             },
             None => Poly {
-                terms: VecDeque::from(vec![]),
-                var_dict: self.var_dict.clone(),
+                terms: VecDeque::from(vec![])
             },
         }
     }
@@ -93,10 +86,8 @@ impl Poly {
         let lcm_lmp_lmq = Poly {
             terms: VecDeque::from(vec![monomial_lcm(
                 p_lt.lt_mono(),
-                q_lt.lt_mono(),
-                &p.var_dict,
+                q_lt.lt_mono()
             )]),
-            var_dict: p.var_dict.clone(),
         };
 
         if let (Some(coef_p), Some(coef_q)) =
@@ -146,10 +137,11 @@ impl Poly {
     }
 }
 
-impl fmt::Debug for Poly {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Poly {
+    pub fn format(&self, var_dict: &[String]) -> String {
+        let mut s = String::new();
         if self.terms.is_empty() {
-            write!(f, "0")?
+            write!(s, "0").unwrap();
         }
 
         for (i, Mono { num, den, vars }) in (self.terms).iter().enumerate() {
@@ -158,42 +150,33 @@ impl fmt::Debug for Poly {
                 if coef < 0. {
                     if coef == -1. && !vars.is_empty() {
                         if i == 0 {
-                            write!(f, "-")?;
+                            write!(s, "-").unwrap();
                         } else {
-                            write!(f, " - ")?;
+                            write!(s, " - ").unwrap();
                         }
                     } else if i == 0 {
-                        write!(f, "{coef}")?;
+                        write!(s, "{coef}").unwrap();
                     } else {
-                        write!(f, " - {}", -coef)?;
+                        write!(s, " - {}", -coef).unwrap();
                     }
                 } else if i == 0 {
-                    write!(f, "{coef}")?;
+                    write!(s, "{coef}").unwrap();
                 } else {
-                    write!(f, " + {coef}")?;
+                    write!(s, " + {coef}").unwrap();
                 }
             } else if i != 0 {
-                write!(f, " + ")?;
+                write!(s, " + ").unwrap();
             }
 
             for (var, pow) in vars {
                 if *pow == 1 {
-                    write!(f, "{}", self.var_dict[*var])?;
+                    write!(s, "{}", var_dict[*var]).unwrap();
                 } else {
-                    write!(f, "{}^{pow}", self.var_dict[*var])?;
+                    write!(s, "{}^{pow}", var_dict[*var]).unwrap();
                 }
             }
         }
 
-        Ok(())
-    }
-}
-
-impl Serialize for Poly {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.collect_str(&format!("{self:?}"))
+        s
     }
 }

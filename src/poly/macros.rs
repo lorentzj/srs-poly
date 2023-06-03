@@ -1,6 +1,3 @@
-// use std::rc::Rc;
-// use crate::poly::Poly;
-
 #[macro_export]
 macro_rules! poly_helper_b {
     () => { vec![] };
@@ -121,9 +118,9 @@ macro_rules! system {
         use std::rc::Rc;
         use std::collections::{HashSet, VecDeque};
 
-        use $crate::mono::Mono;
-        use $crate::poly::Poly;
-        use $crate::system::System;
+        use $crate::poly::mono::Mono;
+        use $crate::poly::poly::Poly;
+        use $crate::poly::system::System;
 
         let raw_polys = vec![$($accumulated)*];
 
@@ -139,7 +136,9 @@ macro_rules! system {
             }
         }
 
-        let var_dict = Rc::new(var_dict.into_iter().collect::<Vec<_>>());
+        let mut var_dict = var_dict.into_iter().collect::<Vec<_>>();
+        var_dict.sort();
+        let var_dict = Rc::new(var_dict);
 
         System {
             var_dict: var_dict.clone(),
@@ -157,10 +156,10 @@ macro_rules! system {
                         }}
                     ).collect::<VecDeque<_>>();
 
-                    let mut acc = Poly::constant(0, &var_dict);
+                    let mut acc = Poly::constant(0);
 
                     for term in terms {
-                        acc = acc + Poly { terms: VecDeque::from(vec![term]), var_dict: var_dict.clone() };
+                        acc = acc + Poly { terms: VecDeque::from(vec![term]) };
                     }
 
                     acc

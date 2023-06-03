@@ -1,6 +1,7 @@
-use crate::mono::{grevlex, monomial_div};
-use crate::poly::Poly;
+use crate::poly::mono::{grevlex, monomial_div};
+use crate::poly::poly::Poly;
 use std::rc::Rc;
+use std::fmt;
 
 #[derive(Clone)]
 pub struct System {
@@ -10,12 +11,12 @@ pub struct System {
 
 impl System {
     pub fn constant(&self, val: i64) -> Poly {
-        Poly::constant(val, &self.var_dict)
+        Poly::constant(val)
     }
 
     pub fn var(&self, var: &str, pow: u64) -> Poly {
         match self.var_dict.iter().position(|v| v == var) {
-            Some(i) => Poly::var(i, pow, &self.var_dict),
+            Some(i) => Poly::var(i, pow),
             None => panic!("variable {} not in system variable dict", var),
         }
     }
@@ -65,7 +66,7 @@ impl System {
                 if i != j {
                     let i_lt = sys.members[i].lt_mono();
                     let j_lt = sys.members[j].lt_mono();
-                    if let Some(m) = monomial_div(&i_lt, &j_lt, &self.var_dict) {
+                    if let Some(m) = monomial_div(&i_lt, &j_lt) {
                         if m.vars.is_empty() {
                             divides_any = i > j;
                         } else {
@@ -97,11 +98,25 @@ impl System {
             keep2.push(rem);
         }
 
-        keep2.sort_by(|p, q| grevlex(&p.lt_mono(), &q.lt_mono(), &sys.var_dict));
+        keep2.sort_by(|p, q| grevlex(&p.lt_mono(), &q.lt_mono()));
 
         sys.members = keep2.iter().map(|p| p.norm()).collect();
 
         sys
+    }
+}
+
+impl fmt::Debug for System {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[")?;
+        for (i, p) in self.members.iter().enumerate() {
+            write!(f, "{}", p.format(&self.var_dict))?;
+            if i + 1 < self.members.len() {
+                write!(f, ", ")?;
+            }
+        }
+        write!(f, "]")?;
+        Ok(())
     }
 }
 
@@ -117,7 +132,7 @@ mod tests {
 
         assert_eq!(
             "[9z^2 + 7z - 3, x + 6z + 7, y + 3z + 2]",
-            format!("{:?}", sys.gb().members)
+            format!("{:?}", sys.gb())
         );
     }
 }

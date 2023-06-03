@@ -1,8 +1,8 @@
 [package]
-name = "srs_poly"
+name = "srs_solver"
 version = "0.1.0"
 edition = "2021"
-description = "utilities for integer polynomial systems"
+description = "the constraint solver for the Sirius type checker"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

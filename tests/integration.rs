@@ -1,5 +1,5 @@
-extern crate srs_poly;
-use srs_poly::system;
+extern crate srs_solver;
+use srs_solver::system;
 
 #[test]
 fn gb() {
@@ -9,9 +9,8 @@ fn gb() {
         x - y^2*z^2 + 1
     };
 
-    // groebner basis
     assert_eq!(
         "[4x - 5, 25y + 16, 32z - 75]",
-        format!("{:?}", sys.gb().members)
+        format!("{:?}", sys.gb())
     );
 }

@@ -38,7 +38,7 @@ pub fn print_exps(term: &Mono, var_dict: &[String]) -> String {
     res
 }
 
-pub fn grevlex(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Ordering {
+pub fn grevlex(lhs: &Mono, rhs: &Mono) -> Ordering {
     let lhs_total_degree = lhs.vars.iter().fold(0, |acc, (_, pow)| acc + pow);
     let rhs_total_degree = rhs.vars.iter().fold(0, |acc, (_, pow)| acc + pow);
 
@@ -47,7 +47,7 @@ pub fn grevlex(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Ordering {
         Ordering::Greater => Ordering::Less,
         Ordering::Equal => {
             for ((lhs_var, lhs_pow), (rhs_var, rhs_pow)) in lhs.vars.iter().zip(&rhs.vars) {
-                match var_dict[*lhs_var].cmp(&var_dict[*rhs_var]) {
+                match lhs_var.cmp(rhs_var) {
                     Ordering::Less => return Ordering::Less,
                     Ordering::Greater => return Ordering::Greater,
                     Ordering::Equal => match lhs_pow.cmp(rhs_pow) {
@@ -63,7 +63,7 @@ pub fn grevlex(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Ordering {
     }
 }
 
-pub fn monomial_div(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Option<Mono> {
+pub fn monomial_div(lhs: &Mono, rhs: &Mono) -> Option<Mono> {
     if matches!(rhs, Mono { num: 0, .. }) {
         None
     } else if matches!(lhs, Mono { num: 0, .. }) {
@@ -87,7 +87,7 @@ pub fn monomial_div(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Option<Mono>
         let mut vars = vec![];
         while let Some((rhs_var, rhs_pow)) = rhs_var_iter.peek() {
             if let Some((lhs_var, lhs_pow)) = lhs_var_iter.peek() {
-                match var_dict[*lhs_var].cmp(&var_dict[*rhs_var]) {
+                match lhs_var.cmp(rhs_var) {
                     Ordering::Equal => match lhs_pow.cmp(rhs_pow) {
                         Ordering::Greater => {
                             vars.push((*lhs_var, lhs_pow - rhs_pow));
@@ -124,7 +124,7 @@ pub fn monomial_div(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Option<Mono>
     }
 }
 
-pub fn monomial_mul(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Mono {
+pub fn monomial_mul(lhs: &Mono, rhs: &Mono) -> Mono {
     let (num, den) = if lhs.num == 0 || rhs.num == 0 {
         return Mono {
             num: 0,
@@ -150,7 +150,7 @@ pub fn monomial_mul(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Mono {
 
     while lhs_var_ind < lhs.vars.len() || rhs_var_ind < rhs.vars.len() {
         if lhs_var_ind < lhs.vars.len() && rhs_var_ind < rhs.vars.len() {
-            match var_dict[lhs.vars[lhs_var_ind].0].cmp(&var_dict[rhs.vars[rhs_var_ind].0]) {
+            match lhs.vars[lhs_var_ind].0.cmp(&rhs.vars[rhs_var_ind].0) {
                 Ordering::Equal => {
                     vars.push((
                         lhs.vars[lhs_var_ind].0,
@@ -181,7 +181,7 @@ pub fn monomial_mul(lhs: &Mono, rhs: &Mono, var_dict: &[String]) -> Mono {
 }
 
 // ignore coef, just applied to vars
-pub fn monomial_lcm(lhs: Mono, rhs: Mono, var_dict: &[String]) -> Mono {
+pub fn monomial_lcm(lhs: Mono, rhs: Mono) -> Mono {
     let mut vars = vec![];
 
     let mut lhs_var_ind = 0;
@@ -189,7 +189,7 @@ pub fn monomial_lcm(lhs: Mono, rhs: Mono, var_dict: &[String]) -> Mono {
 
     while lhs_var_ind < lhs.vars.len() || rhs_var_ind < rhs.vars.len() {
         if lhs_var_ind < lhs.vars.len() && rhs_var_ind < rhs.vars.len() {
-            match var_dict[lhs.vars[lhs_var_ind].0].cmp(&var_dict[rhs.vars[rhs_var_ind].0]) {
+            match lhs.vars[lhs_var_ind].0.cmp(&rhs.vars[rhs_var_ind].0) {
                 Ordering::Equal => {
                     vars.push((
                         lhs.vars[lhs_var_ind].0,
@@ -326,7 +326,7 @@ z
         .split("\n")
         .collect::<Vec<_>>();
 
-        terms.sort_by(|a, b| grevlex(a, b, &var_dict));
+        terms.sort_by(|a, b| grevlex(a, b));
 
         for (i, term) in terms.iter().enumerate() {
             assert_eq!(expected_sort[i], print_exps(&term, &var_dict));
@@ -336,13 +336,6 @@ z
     #[test]
     fn div_mul_fuzz() {
         let mut rng = SmallRng::seed_from_u64(1);
-
-        let var_dict = [
-            "w".to_string(),
-            "x".to_string(),
-            "y".to_string(),
-            "z".to_string(),
-        ];
 
         fn random_mono(rng: &mut SmallRng, min_coef: i32, max_coef: i32) -> Mono {
             let coef = rng.gen_range(min_coef..max_coef);
@@ -379,9 +372,9 @@ z
         for _i in 0..1000 {
             let a = random_mono(&mut rng, 6, 12);
             let b = random_mono(&mut rng, 0, 6);
-            let c = monomial_div(&a, &b, &var_dict);
+            let c = monomial_div(&a, &b);
             if let Some(c) = c {
-                assert_eq!(a, monomial_mul(&c, &b, &var_dict));
+                assert_eq!(a, monomial_mul(&c, &b));
             }
         }
     }
