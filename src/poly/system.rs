@@ -1,5 +1,5 @@
 use crate::poly::mono::{grevlex, monomial_div};
-use crate::poly::poly::Poly;
+use crate::poly::Poly;
 use std::rc::Rc;
 use std::fmt;
 

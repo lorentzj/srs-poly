@@ -3,12 +3,20 @@ use std::collections::VecDeque;
 use std::ops;
 
 use crate::poly::mono::*;
-use crate::poly::poly::*;
+use crate::poly::*;
 
 impl ops::Add<Poly> for Poly {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
+        if self.terms.is_empty() {
+            return rhs
+        }
+
+        if rhs.terms.is_empty() {
+            return self
+        }
+
         let mut new_terms = VecDeque::from(vec![]);
 
         let mut lhs_term_iter = self.terms.into_iter().peekable();
@@ -75,32 +83,105 @@ impl ops::Sub<Poly> for Poly {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self {
-        Self::constant(-1) * rhs + self
+        if self.terms.is_empty() {
+            return Self::constant(-1) * rhs
+        }
+
+        if rhs.terms.is_empty() {
+            return self
+        }
+
+        let mut new_terms = VecDeque::from(vec![]);
+
+        let mut lhs_term_iter = self.terms.into_iter().peekable();
+        let mut rhs_term_iter = rhs.terms.into_iter().peekable();
+
+        loop {
+            if let Some(lhs_term) = lhs_term_iter.peek() {
+                if let Some(rhs_term) = rhs_term_iter.peek() {
+                    match grevlex(lhs_term, rhs_term) {
+                        Ordering::Equal => {
+                            let den_gcd = gcd(lhs_term.den, rhs_term.den);
+
+                            let (new_num, new_den) = {
+                                let new_num = lhs_term.num * rhs_term.den / den_gcd
+                                    - rhs_term.num * lhs_term.den / den_gcd;
+                                let new_den = lhs_term.den * rhs_term.den / den_gcd;
+
+                                let new_gcd = gcd(new_num, new_den);
+                                if new_den / new_gcd > 0 {
+                                    (new_num / new_gcd, new_den / new_gcd)
+                                } else {
+                                    (-new_num / new_gcd, -new_den / new_gcd)
+                                }
+                            };
+
+                            if new_num != 0 {
+                                new_terms.push_back(Mono {
+                                    num: new_num,
+                                    den: new_den,
+                                    vars: lhs_term.vars.clone(),
+                                });
+                            }
+                            lhs_term_iter.next();
+                            rhs_term_iter.next();
+                        }
+
+                        Ordering::Greater => {
+                            let mut rhs_term = rhs_term_iter.next().unwrap();
+                            rhs_term.num *= -1;
+                            new_terms.push_back(rhs_term);
+                        }
+                        Ordering::Less => {
+                            new_terms.push_back(lhs_term.clone());
+                            lhs_term_iter.next();
+                        }
+                    }
+                } else {
+                    new_terms.push_back(lhs_term.clone());
+                    lhs_term_iter.next();
+                }
+            } else if let Some(mut rhs_term) = rhs_term_iter.next() {
+                rhs_term.num *= -1;
+                new_terms.push_back(rhs_term);
+            } else {
+                break;
+            }
+        }
+
+        Self {
+            terms: new_terms,
+        }
     }
 }
 
 impl ops::Mul<Poly> for Poly {
     type Output = Self;
 
-    #[warn(clippy::suspicious_arithmetic_impl)]
     fn mul(self, rhs: Self) -> Self {
-        let mut new = Self::constant(0);
-
-        for lhs_term in self.terms {
-            for rhs_term in &rhs.terms {
-                let new_term = Poly {
-                    terms: VecDeque::from(vec![monomial_mul(&lhs_term, rhs_term)])
-                };
-
-                new = new + new_term;
-            }
-        }
-
-        new
+        self.mul_ref(&rhs)
     }
 }
 
 impl Poly {
+    pub fn mul_ref(&self, other: &Poly) -> Poly {
+        let mut new = Self::constant(0);
+
+        if !self.terms.is_empty() && !other.terms.is_empty() {
+            for lhs_term in &self.terms {
+                for rhs_term in &other.terms {
+                    let new_term = Poly {
+                        terms: VecDeque::from(vec![monomial_mul(&lhs_term, rhs_term)])
+                    };
+    
+                    new = new + new_term;
+                }
+            }    
+        }
+
+        new
+    }
+
     pub fn compound_divide(&self, divisors: &Vec<Poly>) -> (Vec<Poly>, Poly) {
         if divisors.is_empty() {
             return (vec![], self.clone());
@@ -130,7 +211,7 @@ impl Poly {
                         terms: VecDeque::from(vec![self_over_div_lt]),
                     };
 
-                    dividend = dividend - (self_over_div_lt * divisors[curr_divisor].clone());
+                    dividend = dividend - (self_over_div_lt.mul_ref(&divisors[curr_divisor]));
                     curr_divisor = 0;
                 } else {
                     curr_divisor += 1;

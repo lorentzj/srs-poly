@@ -1,9 +1,11 @@
-use crate::poly::poly::Poly;
+use crate::poly::Poly;
 
 #[derive(Debug, Clone)]
 pub enum Cmp {
     Gt,
+    GtEq,
     Eq,
+    LtEq,
     Lt
 }
 
@@ -15,11 +17,19 @@ pub struct Constraint {
 }
 
 #[derive(Debug, Clone)]
-pub enum Tarski {
-    And(Box<Tarski>, Box<Tarski>),
-    Or(Box<Tarski>, Box<Tarski>),
-    Not(Box<Tarski>),
+pub enum T {
+    And(Box<T>, Box<T>),
+    Or(Box<T>, Box<T>),
+    Not(Box<T>),
     C(Constraint)
+}
+
+#[derive(Debug, Clone)]
+pub struct Tarski {
+    pub var_dict: Vec<String>,
+    pub exists: Vec<usize>,
+    pub forall: Vec<usize>,
+    pub data: T,
 }
 
 #[cfg(test)]

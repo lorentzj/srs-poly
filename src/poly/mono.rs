@@ -21,6 +21,35 @@ pub struct Mono {
     pub vars: Vec<(usize, u64)>,
 }
 
+impl Mono {
+    pub fn deg(&self, var: usize) -> usize {
+        self.vars.iter().find_map(|(v, pow)| match var.cmp(v) {
+            Ordering::Equal => Some(*pow as usize),
+            Ordering::Greater => Some(0),
+            Ordering::Less => None
+        }).unwrap_or(0)
+    }
+
+    pub fn coef(&self, var: usize) -> (usize, Mono) {
+        let mut new_vars = vec![];
+        let mut deg = 0;
+
+        for (v, pow) in &self.vars {
+            if *v == var {
+                deg = *pow as usize;
+            } else {
+                new_vars.push((*v, *pow));
+            }
+        }
+
+        (deg, Mono {
+                num: self.num,
+                den: self.den,
+                vars: new_vars
+        })
+    }
+}
+
 #[cfg(test)]
 pub fn print_exps(term: &Mono, var_dict: &[String]) -> String {
     use std::fmt::Write;

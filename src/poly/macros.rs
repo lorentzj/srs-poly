@@ -114,12 +114,22 @@ macro_rules! poly_helper_a {
 
 #[macro_export]
 macro_rules! system {
+    () => {{
+        use std::rc::Rc;
+        use $crate::poly::system::System;
+        
+        System {
+            members: vec![],
+            var_dict: Rc::new(vec![])
+        }
+    }};
+    
     (@accumulate [ $($accumulated:tt)* ] [ ]) => {{
         use std::rc::Rc;
         use std::collections::{HashSet, VecDeque};
 
         use $crate::poly::mono::Mono;
-        use $crate::poly::poly::Poly;
+        use $crate::poly::Poly;
         use $crate::poly::system::System;
 
         let raw_polys = vec![$($accumulated)*];
