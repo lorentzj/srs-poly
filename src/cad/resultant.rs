@@ -11,12 +11,12 @@ fn determinant(mut mat: Vec<Vec<Poly>>, size: usize) -> Poly {
     } else if size == 2 {
         mat[0][0].mul_ref(&mat[1][1]) - mat[0][1].mul_ref(&mat[1][0])
     } else if size == 3 {
-        mat[0][0].mul_ref(&mat[1][1]).mul_ref(&mat[2][2]) + 
-        mat[0][1].mul_ref(&mat[1][2]).mul_ref(&mat[2][0]) + 
-        mat[0][2].mul_ref(&mat[1][0]).mul_ref(&mat[2][1]) - 
-        mat[0][2].mul_ref(&mat[1][1]).mul_ref(&mat[2][0]) - 
-        mat[0][0].mul_ref(&mat[1][2]).mul_ref(&mat[2][1]) - 
-        mat[0][1].mul_ref(&mat[1][0]).mul_ref(&mat[2][2])
+        mat[0][0].mul_ref(&mat[1][1]).mul_ref(&mat[2][2])
+            + mat[0][1].mul_ref(&mat[1][2]).mul_ref(&mat[2][0])
+            + mat[0][2].mul_ref(&mat[1][0]).mul_ref(&mat[2][1])
+            - mat[0][2].mul_ref(&mat[1][1]).mul_ref(&mat[2][0])
+            - mat[0][0].mul_ref(&mat[1][2]).mul_ref(&mat[2][1])
+            - mat[0][1].mul_ref(&mat[1][0]).mul_ref(&mat[2][2])
     } else {
         for i in 0..size {
             for j in 0..size {
@@ -75,16 +75,16 @@ fn syl_k(a_coefs: &Vec<Poly>, b_coefs: &Vec<Poly>, k: usize) -> Vec<Vec<Poly>> {
 pub fn subresultants(a: &Poly, b: &Poly, var: usize) -> Vec<Vec<Poly>> {
     let mut srs = vec![a.coefs(var), b.coefs(var)];
     let (_n, m) = (srs[0].len() - 1, srs[1].len() - 1);
-    
-    for k in (0 .. m).rev() {
-        let mut syl = syl_k(&srs[0], &srs[1],  k);
+
+    for k in (0..m).rev() {
+        let mut syl = syl_k(&srs[0], &srs[1], k);
 
         let syl_m = syl.len();
         let syl_n = syl[0].len();
 
         let mut coefs = VecDeque::new();
 
-        for _ in 0 .. syl_n + 1 - syl_m  {
+        for _ in 0..syl_n + 1 - syl_m {
             let mut syl_minor = vec![];
             for row in &mut syl {
                 let mut syl_minor_row = vec![];
@@ -105,13 +105,13 @@ pub fn subresultants(a: &Poly, b: &Poly, var: usize) -> Vec<Vec<Poly>> {
 
 #[cfg(test)]
 mod tests {
+    use super::{determinant, subresultants, syl_k};
     use crate::system;
-    use super::{subresultants, determinant, syl_k};
 
     #[test]
     fn sylvester() {
-        let a_coefs = system!{ 5, 4, 3, 2, 1 }.members;
-        let b_coefs = system!{ 4, 3, 2, 1 }.members;
+        let a_coefs = system! { 5, 4, 3, 2, 1 }.members;
+        let b_coefs = system! { 4, 3, 2, 1 }.members;
 
         let expected_deg0 = vec![
             "5, 4, 3, 2, 1, 0, 0",
@@ -120,7 +120,7 @@ mod tests {
             "4, 3, 2, 1, 0, 0, 0",
             "0, 4, 3, 2, 1, 0, 0",
             "0, 0, 4, 3, 2, 1, 0",
-            "0, 0, 0, 4, 3, 2, 1"
+            "0, 0, 0, 4, 3, 2, 1",
         ];
 
         let expected_deg1 = vec![
@@ -134,14 +134,22 @@ mod tests {
         let mat = syl_k(&a_coefs, &b_coefs, 0);
 
         for i in 0..(a_coefs.len() + b_coefs.len() - 2) {
-            let line = mat[i].iter().map(|p| p.format(&vec![])).collect::<Vec<_>>().join(", ");
+            let line = mat[i]
+                .iter()
+                .map(|p| p.format(&vec![]))
+                .collect::<Vec<_>>()
+                .join(", ");
             assert_eq!(expected_deg0[i], line);
         }
 
         let mat = syl_k(&a_coefs, &b_coefs, 1);
 
         for i in 0..(a_coefs.len() + b_coefs.len() - 4) {
-            let line = mat[i].iter().map(|p| p.format(&vec![])).collect::<Vec<_>>().join(", ");
+            let line = mat[i]
+                .iter()
+                .map(|p| p.format(&vec![]))
+                .collect::<Vec<_>>()
+                .join(", ");
             assert_eq!(expected_deg1[i], line);
         }
     }
@@ -149,10 +157,10 @@ mod tests {
     #[test]
     fn const_det() {
         let mat = vec![
-            system!{  1,  2,  3,  4 }.members,
-            system!{  5,  6,  7, -8 }.members,
-            system!{  0,  9,  0,  1 }.members, 
-            system!{ -2, -5, 11,  1 }.members   
+            system! {  1,  2,  3,  4 }.members,
+            system! {  5,  6,  7, -8 }.members,
+            system! {  0,  9,  0,  1 }.members,
+            system! { -2, -5, 11,  1 }.members,
         ];
 
         assert_eq!(-3560, determinant(mat, 4).get_constant_val().unwrap().0);
@@ -179,7 +187,7 @@ mod tests {
 
         for (ps, eps) in subres.iter().zip(expected) {
             assert_eq!(
-                eps, 
+                eps,
                 ps.iter()
                     .map(|p| p.format(&sys.var_dict))
                     .collect::<Vec<_>>()

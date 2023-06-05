@@ -117,13 +117,13 @@ macro_rules! system {
     () => {{
         use std::rc::Rc;
         use $crate::poly::system::System;
-        
+
         System {
             members: vec![],
             var_dict: Rc::new(vec![])
         }
     }};
-    
+
     (@accumulate [ $($accumulated:tt)* ] [ ]) => {{
         use std::rc::Rc;
         use std::collections::{HashSet, VecDeque};

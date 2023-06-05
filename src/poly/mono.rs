@@ -23,11 +23,14 @@ pub struct Mono {
 
 impl Mono {
     pub fn deg(&self, var: usize) -> usize {
-        self.vars.iter().find_map(|(v, pow)| match var.cmp(v) {
-            Ordering::Equal => Some(*pow as usize),
-            Ordering::Greater => Some(0),
-            Ordering::Less => None
-        }).unwrap_or(0)
+        self.vars
+            .iter()
+            .find_map(|(v, pow)| match var.cmp(v) {
+                Ordering::Equal => Some(*pow as usize),
+                Ordering::Greater => Some(0),
+                Ordering::Less => None,
+            })
+            .unwrap_or(0)
     }
 
     pub fn coef(&self, var: usize) -> (usize, Mono) {
@@ -42,11 +45,14 @@ impl Mono {
             }
         }
 
-        (deg, Mono {
+        (
+            deg,
+            Mono {
                 num: self.num,
                 den: self.den,
-                vars: new_vars
-        })
+                vars: new_vars,
+            },
+        )
     }
 }
 

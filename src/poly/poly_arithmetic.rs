@@ -10,11 +10,11 @@ impl ops::Add<Poly> for Poly {
 
     fn add(self, rhs: Self) -> Self {
         if self.terms.is_empty() {
-            return rhs
+            return rhs;
         }
 
         if rhs.terms.is_empty() {
-            return self
+            return self;
         }
 
         let mut new_terms = VecDeque::from(vec![]);
@@ -73,9 +73,7 @@ impl ops::Add<Poly> for Poly {
             }
         }
 
-        Self {
-            terms: new_terms,
-        }
+        Self { terms: new_terms }
     }
 }
 
@@ -84,11 +82,11 @@ impl ops::Sub<Poly> for Poly {
 
     fn sub(self, rhs: Self) -> Self {
         if self.terms.is_empty() {
-            return Self::constant(-1) * rhs
+            return Self::constant(-1) * rhs;
         }
 
         if rhs.terms.is_empty() {
-            return self
+            return self;
         }
 
         let mut new_terms = VecDeque::from(vec![]);
@@ -149,9 +147,7 @@ impl ops::Sub<Poly> for Poly {
             }
         }
 
-        Self {
-            terms: new_terms,
-        }
+        Self { terms: new_terms }
     }
 }
 
@@ -167,16 +163,14 @@ impl Poly {
     pub fn mul_ref(&self, other: &Poly) -> Poly {
         let mut new = Self::constant(0);
 
-        if !self.terms.is_empty() && !other.terms.is_empty() {
-            for lhs_term in &self.terms {
-                for rhs_term in &other.terms {
-                    let new_term = Poly {
-                        terms: VecDeque::from(vec![monomial_mul(&lhs_term, rhs_term)])
-                    };
-    
-                    new = new + new_term;
-                }
-            }    
+        for lhs_term in &self.terms {
+            for rhs_term in &other.terms {
+                let new_term = Poly {
+                    terms: VecDeque::from(vec![monomial_mul(lhs_term, rhs_term)]),
+                };
+
+                new = new + new_term;
+            }
         }
 
         new
@@ -196,7 +190,7 @@ impl Poly {
 
         let mut curr_divisor = 0;
 
-        while dividend.get_constant_val() != Some((0, 1)) {
+        while !dividend.is_zero() {
             let self_lt = dividend.terms[0].clone();
             if !divisors[curr_divisor].terms.is_empty() {
                 let div_lt = &divisors[curr_divisor].terms[0];
@@ -238,7 +232,7 @@ impl Poly {
     pub fn try_divide(&self, divisor: &Poly) -> Option<Poly> {
         let (quots, rem) = self.compound_divide(&vec![divisor.clone()]);
 
-        if let Some((0, 1)) = rem.get_constant_val() {
+        if rem.is_zero() {
             Some(quots[0].clone())
         } else {
             None
@@ -248,7 +242,11 @@ impl Poly {
     pub fn derivative(&self, by: usize) -> Poly {
         let mut new_terms = VecDeque::new();
         for term in &self.terms {
-            let mut new_term = Mono { num: term.num, den: term.den, vars: vec![] };
+            let mut new_term = Mono {
+                num: term.num,
+                den: term.den,
+                vars: vec![],
+            };
             let mut found = false;
             for (var, pow) in &term.vars {
                 if *var == by {
@@ -293,12 +291,9 @@ mod tests {
         assert_eq!("3a^2 + 4b + 2", (c + b + a).format(&var_dict));
 
         // (a + 1)(a + 1)
-        let a = (Poly::var(0, 1) + Poly::constant(1))
-            * (Poly::var(0, 1) + Poly::constant(1));
+        let a = (Poly::var(0, 1) + Poly::constant(1)) * (Poly::var(0, 1) + Poly::constant(1));
         // a^2 + 2a + 1
-        let b = Poly::var(0, 2)
-            + Poly::constant(2) * Poly::var(0, 1)
-            + Poly::constant(1);
+        let b = Poly::var(0, 2) + Poly::constant(2) * Poly::var(0, 1) + Poly::constant(1);
 
         assert!(a == b);
     }
@@ -307,10 +302,7 @@ mod tests {
     fn arith_fuzz() {
         let mut rng = SmallRng::seed_from_u64(1);
 
-        fn create_random_poly(
-            rng: &mut SmallRng,
-            term_max: i32
-        ) -> Poly {
+        fn create_random_poly(rng: &mut SmallRng, term_max: i32) -> Poly {
             let mut p = Poly::constant(0);
 
             for _ in 0..rng.gen_range(0..term_max + 1) {
@@ -331,10 +323,9 @@ mod tests {
         for _ in 0..1000 {
             let dividend = create_random_poly(&mut rng, 6);
             let n_divs = rng.gen_range(0..4);
-            let divisors: Vec<_> =
-                std::iter::repeat_with(|| create_random_poly(&mut rng, 4))
-                    .take(n_divs)
-                    .collect();
+            let divisors: Vec<_> = std::iter::repeat_with(|| create_random_poly(&mut rng, 4))
+                .take(n_divs)
+                .collect();
 
             let (quotients, rem) = dividend.clone().compound_divide(&divisors);
 
@@ -349,16 +340,16 @@ mod tests {
         }
     }
 
-    #[test] 
+    #[test]
     fn derivative() {
-        let var_dict = vec![
-            "x".to_string(),
-            "y".to_string(),
-            "z".to_string(),
-        ];
+        let var_dict = vec!["x".to_string(), "y".to_string(), "z".to_string()];
 
-        let p = Poly::var(0, 2) * Poly::var(1, 2) * Poly::constant(3) + Poly::var(0, 1) * Poly::var(2, 1);
+        let p = Poly::var(0, 2) * Poly::var(1, 2) * Poly::constant(3)
+            + Poly::var(0, 1) * Poly::var(2, 1);
 
-        assert_eq!("6xy^2 + z", format!("{}", p.derivative(0).format(&var_dict)));
+        assert_eq!(
+            "6xy^2 + z",
+            format!("{}", p.derivative(0).format(&var_dict))
+        );
     }
 }

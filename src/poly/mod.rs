@@ -10,7 +10,7 @@ use crate::poly::mono::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Poly {
-    pub terms: VecDeque<Mono>
+    pub terms: VecDeque<Mono>,
 }
 
 impl Poly {
@@ -21,7 +21,7 @@ impl Poly {
                     num: 1,
                     den: 1,
                     vars: vec![],
-                }])
+                }]),
             }
         } else {
             Self {
@@ -29,7 +29,7 @@ impl Poly {
                     num: 1,
                     den: 1,
                     vars: vec![(var, pow)],
-                }])
+                }]),
             }
         }
     }
@@ -44,7 +44,7 @@ impl Poly {
                     den: 1,
                     vars: vec![],
                 }])
-            }
+            },
         }
     }
 
@@ -62,13 +62,17 @@ impl Poly {
         }
     }
 
+    pub fn is_zero(&self) -> bool {
+        self.terms.is_empty()
+    }
+
     pub fn lt(&self) -> Poly {
         match self.terms.front() {
             Some(m) => Poly {
-                terms: VecDeque::from(vec![m.clone()])
+                terms: VecDeque::from(vec![m.clone()]),
             },
             None => Poly {
-                terms: VecDeque::from(vec![])
+                terms: VecDeque::from(vec![]),
             },
         }
     }
@@ -89,10 +93,7 @@ impl Poly {
         let q_lt = q.lt();
 
         let lcm_lmp_lmq = Poly {
-            terms: VecDeque::from(vec![monomial_lcm(
-                p_lt.lt_mono(),
-                q_lt.lt_mono()
-            )]),
+            terms: VecDeque::from(vec![monomial_lcm(p_lt.lt_mono(), q_lt.lt_mono())]),
         };
 
         if let (Some(coef_p), Some(coef_q)) =
@@ -142,22 +143,23 @@ impl Poly {
     }
 
     pub fn deg(&self, var: usize) -> usize {
-        self.terms.iter()
+        self.terms
+            .iter()
             .map(|term| term.deg(var))
             .fold(0, |acc, v| acc.max(v))
     }
 
     pub fn coefs(&self, var: usize) -> Vec<Poly> {
         let deg = self.deg(var);
-        let mut coefs: Vec<_> = std::iter::repeat(Poly::constant(0))
-            .take(deg + 1)
-            .collect();
-
+        let mut coefs: Vec<_> = std::iter::repeat(Poly::constant(0)).take(deg + 1).collect();
 
         for term in &self.terms {
             let (term_deg, term_coef) = term.coef(var);
 
-            coefs[deg - term_deg] = coefs[deg - term_deg].clone() + Poly { terms: VecDeque::from(vec![term_coef]) };
+            coefs[deg - term_deg] = coefs[deg - term_deg].clone()
+                + Poly {
+                    terms: VecDeque::from(vec![term_coef]),
+                };
         }
 
         coefs
@@ -214,11 +216,7 @@ mod tests {
 
     #[test]
     fn coefs() {
-        let var_dict = vec![
-            "x".to_string(),
-            "y".to_string(),
-            "z".to_string()
-        ];
+        let var_dict = vec!["x".to_string(), "y".to_string(), "z".to_string()];
 
         let a = Poly::var(0, 4);
         let b = Poly::var(0, 2) * Poly::constant(3);
@@ -236,7 +234,13 @@ mod tests {
 
         assert_eq!(
             "[\"1\", \"0\", \"5z^3 + 3\", \"4y\", \"z + 2\"]",
-            format!("{:?}", g.coefs(0).iter().map(|p| p.format(&var_dict)).collect::<Vec<_>>())
+            format!(
+                "{:?}",
+                g.coefs(0)
+                    .iter()
+                    .map(|p| p.format(&var_dict))
+                    .collect::<Vec<_>>()
+            )
         );
     }
 }

@@ -6,14 +6,14 @@ pub enum Cmp {
     GtEq,
     Eq,
     LtEq,
-    Lt
+    Lt,
 }
 
 #[derive(Debug, Clone)]
 pub struct Constraint {
     pub value: Poly,
     pub cmp_zero: Cmp,
-    pub provenance: Vec<usize>
+    pub provenance: Vec<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -21,7 +21,7 @@ pub enum T {
     And(Box<T>, Box<T>),
     Or(Box<T>, Box<T>),
     Not(Box<T>),
-    C(Constraint)
+    C(Constraint),
 }
 
 #[derive(Debug, Clone)]
@@ -35,7 +35,5 @@ pub struct Tarski {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test() {
-
-    }
+    fn test() {}
 }

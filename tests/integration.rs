@@ -9,8 +9,5 @@ fn gb() {
         x - y^2*z^2 + 1
     };
 
-    assert_eq!(
-        "[4x - 5, 25y + 16, 32z - 75]",
-        format!("{:?}", sys.gb())
-    );
+    assert_eq!("[4x - 5, 25y + 16, 32z - 75]", format!("{:?}", sys.gb()));
 }

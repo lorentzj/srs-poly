@@ -1,7 +1,7 @@
 use crate::poly::mono::{grevlex, monomial_div};
 use crate::poly::Poly;
-use std::rc::Rc;
 use std::fmt;
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct System {
