@@ -3,29 +3,34 @@ use crate::poly::Poly;
 use std::fmt;
 use std::rc::Rc;
 
+use super::Field;
+use crate::rational::Rat;
+
 #[derive(Clone)]
-pub struct System {
+pub struct System<T: Field> {
     pub var_dict: Rc<Vec<String>>,
-    pub members: Vec<Poly>,
+    pub members: Vec<Poly<T>>,
 }
 
-impl System {
-    pub fn constant(&self, val: i64) -> Poly {
+impl<T: Field> System<T> {
+    pub fn constant(&self, val: i64) -> Poly<T> {
         Poly::constant(val)
     }
 
-    pub fn var(&self, var: &str, pow: u64) -> Poly {
+    pub fn var(&self, var: &str, pow: u64) -> Poly<T> {
         match self.var_dict.iter().position(|v| v == var) {
             Some(i) => Poly::var(i, pow),
             None => panic!("variable {} not in system variable dict", var),
         }
     }
 
-    pub fn get(&self, i: usize) -> Poly {
+    pub fn get(&self, i: usize) -> Poly<T> {
         self.members[i].clone()
     }
+}
 
-    pub fn gb(&self) -> System {
+impl System<Rat> {
+    pub fn gb(&self) -> System<Rat> {
         let mut sys = self.clone();
 
         // buchberger
@@ -47,7 +52,7 @@ impl System {
             let s = Poly::s_poly(a, b);
             let (_, rem) = s.compound_divide(&sys.members);
 
-            if !matches!(rem.get_constant_val(), Some((0, 1))) {
+            if !rem.is_zero() {
                 for member in &sys.members {
                     combs.push((member.clone(), rem.clone()));
                 }
@@ -106,7 +111,7 @@ impl System {
     }
 }
 
-impl fmt::Debug for System {
+impl<T: Field> fmt::Debug for System<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[")?;
         for (i, p) in self.members.iter().enumerate() {

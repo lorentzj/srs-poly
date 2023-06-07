@@ -1,27 +1,14 @@
-use serde::Serialize;
 use std::cmp::Ordering;
 
-// Euclid's algorithm
-pub fn gcd(mut a: i64, mut b: i64) -> i64 {
-    let mut t: i64;
+use super::Field;
 
-    while b != 0 {
-        t = b;
-        b = a % b;
-        a = t;
-    }
-
-    a
-}
-
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub struct Mono {
-    pub num: i64,
-    pub den: i64,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Mono<T: Field> {
+    pub val: T,
     pub vars: Vec<(usize, u64)>,
 }
 
-impl Mono {
+impl<T: Field> Mono<T> {
     pub fn deg(&self, var: usize) -> usize {
         self.vars
             .iter()
@@ -33,7 +20,7 @@ impl Mono {
             .unwrap_or(0)
     }
 
-    pub fn coef(&self, var: usize) -> (usize, Mono) {
+    pub fn coef(&self, var: usize) -> (usize, Mono<T>) {
         let mut new_vars = vec![];
         let mut deg = 0;
 
@@ -48,8 +35,7 @@ impl Mono {
         (
             deg,
             Mono {
-                num: self.num,
-                den: self.den,
+                val: self.val.clone(),
                 vars: new_vars,
             },
         )
@@ -57,7 +43,7 @@ impl Mono {
 }
 
 #[cfg(test)]
-pub fn print_exps(term: &Mono, var_dict: &[String]) -> String {
+pub fn print_exps<T: Field>(term: &Mono<T>, var_dict: &[String]) -> String {
     use std::fmt::Write;
 
     let mut res = String::new();
@@ -73,7 +59,7 @@ pub fn print_exps(term: &Mono, var_dict: &[String]) -> String {
     res
 }
 
-pub fn grevlex(lhs: &Mono, rhs: &Mono) -> Ordering {
+pub fn grevlex<T: Field>(lhs: &Mono<T>, rhs: &Mono<T>) -> Ordering {
     let lhs_total_degree = lhs.vars.iter().fold(0, |acc, (_, pow)| acc + pow);
     let rhs_total_degree = rhs.vars.iter().fold(0, |acc, (_, pow)| acc + pow);
 
@@ -98,25 +84,15 @@ pub fn grevlex(lhs: &Mono, rhs: &Mono) -> Ordering {
     }
 }
 
-pub fn monomial_div(lhs: &Mono, rhs: &Mono) -> Option<Mono> {
-    if matches!(rhs, Mono { num: 0, .. }) {
+pub fn monomial_div<T: Field>(lhs: &Mono<T>, rhs: &Mono<T>) -> Option<Mono<T>> {
+    if rhs.val.is_zero() {
         None
-    } else if matches!(lhs, Mono { num: 0, .. }) {
+    } else if lhs.val.is_zero() {
         Some(Mono {
-            num: 0,
-            den: 1,
+            val: T::from(0),
             vars: vec![],
         })
     } else {
-        let num = lhs.num * rhs.den;
-        let den = lhs.den * rhs.num;
-        let coef_gcd = gcd(num, den);
-        let (num, den) = if den / coef_gcd > 0 {
-            (num / coef_gcd, den / coef_gcd)
-        } else {
-            (-num / coef_gcd, -den / coef_gcd)
-        };
-
         let mut lhs_var_iter = lhs.vars.iter().peekable();
         let mut rhs_var_iter = rhs.vars.iter().peekable();
         let mut vars = vec![];
@@ -155,27 +131,18 @@ pub fn monomial_div(lhs: &Mono, rhs: &Mono) -> Option<Mono> {
             vars.push((*lhs_var, *lhs_pow));
         }
 
-        Some(Mono { num, den, vars })
+        Some(Mono { val: lhs.val.clone() / rhs.val.clone(), vars })
     }
 }
 
-pub fn monomial_mul(lhs: &Mono, rhs: &Mono) -> Mono {
-    let (num, den) = if lhs.num == 0 || rhs.num == 0 {
+pub fn monomial_mul<T: Field>(lhs: &Mono<T>, rhs: &Mono<T>) -> Mono<T> {
+    let val = if lhs.val.is_zero() || rhs.val.is_zero() {
         return Mono {
-            num: 0,
-            den: 1,
+            val: T::zero(),
             vars: vec![],
         };
     } else {
-        let num = lhs.num * rhs.num;
-        let den = lhs.den * rhs.den;
-        let coef_gcd = gcd(num, den);
-
-        if den / coef_gcd > 0 {
-            (num / coef_gcd, den / coef_gcd)
-        } else {
-            (-num / coef_gcd, -den / coef_gcd)
-        }
+        lhs.val.clone() * rhs.val.clone()
     };
 
     let mut vars = vec![];
@@ -212,11 +179,11 @@ pub fn monomial_mul(lhs: &Mono, rhs: &Mono) -> Mono {
         }
     }
 
-    Mono { num, den, vars }
+    Mono { val, vars }
 }
 
 // ignore coef, just applied to vars
-pub fn monomial_lcm(lhs: Mono, rhs: Mono) -> Mono {
+pub fn monomial_lcm<T: Field>(lhs: Mono<T>, rhs: Mono<T>) -> Mono<T> {
     let mut vars = vec![];
 
     let mut lhs_var_ind = 0;
@@ -252,8 +219,7 @@ pub fn monomial_lcm(lhs: Mono, rhs: Mono) -> Mono {
     }
 
     Mono {
-        num: 1,
-        den: 1,
+        val: T::one(),
         vars,
     }
 }
@@ -261,7 +227,7 @@ pub fn monomial_lcm(lhs: Mono, rhs: Mono) -> Mono {
 #[cfg(test)]
 mod tests {
     use rand::prelude::*;
-
+    use crate::rational::Rat;
     use super::*;
 
     #[test]
@@ -284,8 +250,7 @@ mod tests {
                     }
 
                     terms.push(Mono {
-                        num: 1,
-                        den: 1,
+                        val: Rat::new(1),
                         vars,
                     });
                 }
@@ -372,7 +337,7 @@ z
     fn div_mul_fuzz() {
         let mut rng = SmallRng::seed_from_u64(1);
 
-        fn random_mono(rng: &mut SmallRng, min_coef: i32, max_coef: i32) -> Mono {
+        fn random_mono(rng: &mut SmallRng, min_coef: i32, max_coef: i32) -> Mono<Rat> {
             let coef = rng.gen_range(min_coef..max_coef);
 
             let mut vars = vec![];
@@ -398,8 +363,7 @@ z
             }
 
             Mono {
-                num: coef as i64,
-                den: 1,
+                val: Rat::new(coef as i64),
                 vars: if coef == 0 { vec![] } else { vars },
             }
         }

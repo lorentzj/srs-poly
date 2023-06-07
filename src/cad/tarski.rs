@@ -1,4 +1,5 @@
 use crate::poly::Poly;
+use crate::rational::Rat;
 
 #[derive(Debug, Clone)]
 pub enum Cmp {
@@ -11,7 +12,7 @@ pub enum Cmp {
 
 #[derive(Debug, Clone)]
 pub struct Constraint {
-    pub value: Poly,
+    pub value: Poly<Rat>,
     pub cmp_zero: Cmp,
     pub provenance: Vec<usize>,
 }

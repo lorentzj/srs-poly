@@ -6,28 +6,29 @@ pub mod system;
 use std::collections::VecDeque;
 use std::fmt::Write;
 
+use crate::rational::{Rat, gcd};
 use crate::poly::mono::*;
 
+use crate::field::Field;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Poly {
-    pub terms: VecDeque<Mono>,
+pub struct Poly<T: Field> {
+    pub terms: VecDeque<Mono<T>>,
 }
 
-impl Poly {
+impl<T: Field> Poly<T> {
     pub fn var(var: usize, pow: u64) -> Self {
         if pow == 0 {
             Self {
                 terms: VecDeque::from(vec![Mono {
-                    num: 1,
-                    den: 1,
+                    val: T::one(),
                     vars: vec![],
                 }]),
             }
         } else {
             Self {
                 terms: VecDeque::from(vec![Mono {
-                    num: 1,
-                    den: 1,
+                    val: T::one(),
                     vars: vec![(var, pow)],
                 }]),
             }
@@ -40,20 +41,19 @@ impl Poly {
                 VecDeque::new()
             } else {
                 VecDeque::from(vec![Mono {
-                    num: val,
-                    den: 1,
+                    val: T::from(val),
                     vars: vec![],
                 }])
             },
         }
     }
 
-    pub fn get_constant_val(&self) -> Option<(i64, i64)> {
+    pub fn get_constant_val(&self) -> Option<i64> {
         if self.terms.is_empty() {
-            Some((0, 1))
+            Some(0)
         } else if self.terms.len() == 1 {
             if self.terms[0].vars.is_empty() {
-                Some((self.terms[0].num, self.terms[0].den))
+                self.terms[0].val.clone().try_into().ok()
             } else {
                 None
             }
@@ -66,7 +66,7 @@ impl Poly {
         self.terms.is_empty()
     }
 
-    pub fn lt(&self) -> Poly {
+    pub fn lt(&self) -> Poly<T> {
         match self.terms.front() {
             Some(m) => Poly {
                 terms: VecDeque::from(vec![m.clone()]),
@@ -77,18 +77,17 @@ impl Poly {
         }
     }
 
-    pub fn lt_mono(&self) -> Mono {
+    pub fn lt_mono(&self) -> Mono<T> {
         match self.terms.front() {
             Some(m) => m.clone(),
             None => Mono {
-                num: 0,
-                den: 1,
+                val: T::zero(),
                 vars: vec![],
             },
         }
     }
 
-    pub fn s_poly(p: Poly, q: Poly) -> Poly {
+    pub fn s_poly(p: Poly<T>, q: Poly<T>) -> Poly<T> {
         let p_lt = p.lt();
         let q_lt = q.lt();
 
@@ -105,43 +104,6 @@ impl Poly {
         }
     }
 
-    pub fn norm(&self) -> Poly {
-        let mut new = self.clone();
-
-        let mut all_terms_den = 1;
-        let mut all_terms_gcd = 1;
-
-        if let Some(t) = new.terms.front() {
-            all_terms_gcd = t.num;
-        }
-
-        for term in &new.terms {
-            all_terms_den *= term.den / gcd(all_terms_den, term.den);
-        }
-
-        for term in &mut new.terms {
-            let term_gcd = gcd(term.num * all_terms_den, term.den);
-            term.num = term.num * all_terms_den / term_gcd;
-            term.den = 1;
-
-            all_terms_gcd = gcd(term.num, all_terms_gcd);
-        }
-
-        if let Some(t) = new.terms.front_mut() {
-            if t.num < 0 {
-                all_terms_gcd = -all_terms_gcd.abs();
-            } else {
-                all_terms_gcd = all_terms_gcd.abs();
-            }
-        }
-
-        for term in &mut new.terms {
-            term.num /= all_terms_gcd;
-        }
-
-        new
-    }
-
     pub fn deg(&self, var: usize) -> usize {
         self.terms
             .iter()
@@ -149,7 +111,7 @@ impl Poly {
             .fold(0, |acc, v| acc.max(v))
     }
 
-    pub fn coefs(&self, var: usize) -> Vec<Poly> {
+    pub fn coefs(&self, var: usize) -> Vec<Poly<T>> {
         let deg = self.deg(var);
         let mut coefs: Vec<_> = std::iter::repeat(Poly::constant(0)).take(deg + 1).collect();
 
@@ -166,15 +128,54 @@ impl Poly {
     }
 }
 
-impl Poly {
+impl Poly<Rat> {
+    pub fn norm(&self) -> Poly<Rat> {
+        let mut new = self.clone();
+
+        let mut all_terms_den = 1;
+        let mut all_terms_gcd = 1;
+
+        if let Some(t) = new.terms.front() {
+            all_terms_gcd = t.val.num;
+        }
+
+        for term in &new.terms {
+            all_terms_den *= term.val.den / gcd(all_terms_den, term.val.den);
+        }
+
+        for term in &mut new.terms {
+            let term_gcd = gcd(term.val.num * all_terms_den, term.val.den);
+            term.val.num = term.val.num * all_terms_den / term_gcd;
+            term.val.den = 1;
+
+            all_terms_gcd = gcd(term.val.num, all_terms_gcd);
+        }
+
+        if let Some(t) = new.terms.front_mut() {
+            if t.val.num < 0 {
+                all_terms_gcd = -all_terms_gcd.abs();
+            } else {
+                all_terms_gcd = all_terms_gcd.abs();
+            }
+        }
+
+        for term in &mut new.terms {
+            term.val.num /= all_terms_gcd;
+        }
+
+        new
+    }
+}
+
+impl<T: Field> Poly<T> {
     pub fn format(&self, var_dict: &[String]) -> String {
         let mut s = String::new();
         if self.terms.is_empty() {
             write!(s, "0").unwrap();
         }
 
-        for (i, Mono { num, den, vars }) in (self.terms).iter().enumerate() {
-            let coef = (*num as f64) / (*den as f64);
+        for (i, Mono { val, vars }) in (self.terms).iter().enumerate() {
+            let coef: f64 = val.clone().into();
             if coef != 1. || vars.is_empty() {
                 if coef < 0. {
                     if coef == -1. && !vars.is_empty() {
@@ -212,18 +213,18 @@ impl Poly {
 
 #[cfg(test)]
 mod tests {
-    use super::Poly;
+    use super::{Poly, Rat};
 
     #[test]
     fn coefs() {
         let var_dict = vec!["x".to_string(), "y".to_string(), "z".to_string()];
 
-        let a = Poly::var(0, 4);
-        let b = Poly::var(0, 2) * Poly::constant(3);
-        let c = Poly::var(0, 2) * Poly::var(2, 3) * Poly::constant(5);
-        let d = Poly::var(1, 1) * Poly::var(0, 1) * Poly::constant(4);
-        let e = Poly::var(2, 1);
-        let f = Poly::constant(2);
+        let a: Poly<Rat> = Poly::var(0, 4);
+        let b: Poly<Rat> = Poly::var(0, 2) * Poly::constant(3);
+        let c: Poly<Rat> = Poly::var(0, 2) * Poly::var(2, 3) * Poly::constant(5);
+        let d: Poly<Rat> = Poly::var(1, 1) * Poly::var(0, 1) * Poly::constant(4);
+        let e: Poly<Rat> = Poly::var(2, 1);
+        let f: Poly<Rat> = Poly::constant(2);
 
         let g = a + b + c + d + e + f;
 

@@ -1,9 +1,10 @@
 use std::collections::VecDeque;
 
 use crate::poly::Poly;
+use crate::field::Field;
 
 // Bareiss algorithm
-fn determinant(mut mat: Vec<Vec<Poly>>, size: usize) -> Poly {
+fn determinant<T: Field>(mut mat: Vec<Vec<Poly<T>>>, size: usize) -> Poly<T> {
     if size == 0 {
         Poly::constant(1)
     } else if size == 1 {
@@ -38,7 +39,7 @@ fn determinant(mut mat: Vec<Vec<Poly>>, size: usize) -> Poly {
 
 // k'th order Sylvester matrix
 // see https://link.springer.com/article/10.1007/s00200-004-0158-4
-fn syl_k(a_coefs: &Vec<Poly>, b_coefs: &Vec<Poly>, k: usize) -> Vec<Vec<Poly>> {
+fn syl_k<T: Field>(a_coefs: &Vec<Poly<T>>, b_coefs: &Vec<Poly<T>>, k: usize) -> Vec<Vec<Poly<T>>> {
     let mut rows = vec![];
     let a_deg = a_coefs.len() - 1;
     let b_deg = b_coefs.len() - 1;
@@ -72,7 +73,7 @@ fn syl_k(a_coefs: &Vec<Poly>, b_coefs: &Vec<Poly>, k: usize) -> Vec<Vec<Poly>> {
 
 // each subresultant is densely represented as poly coefs (univariate in var)
 // deg(b) <= deg(a)
-pub fn subresultants(a: &Poly, b: &Poly, var: usize) -> Vec<Vec<Poly>> {
+pub fn subresultants<T: Field>(a: &Poly<T>, b: &Poly<T>, var: usize) -> Vec<Vec<Poly<T>>> {
     let mut srs = vec![a.coefs(var), b.coefs(var)];
     let (_n, m) = (srs[0].len() - 1, srs[1].len() - 1);
 
@@ -163,7 +164,7 @@ mod tests {
             system! { -2, -5, 11,  1 }.members,
         ];
 
-        assert_eq!(-3560, determinant(mat, 4).get_constant_val().unwrap().0);
+        assert_eq!(-3560, determinant(mat, 4).get_constant_val().unwrap());
     }
 
     #[test]

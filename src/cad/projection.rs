@@ -1,6 +1,7 @@
 use crate::poly::Poly;
+use crate::field::Field;
 
-pub fn reducta_set(p: &Poly, var: usize) -> Vec<Vec<Poly>> {
+pub fn reducta_set<T: Field>(p: &Poly<T>, var: usize) -> Vec<Vec<Poly<T>>> {
     let coefs = p.coefs(var);
 
     if coefs.is_empty() {

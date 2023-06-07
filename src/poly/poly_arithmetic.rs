@@ -5,7 +5,7 @@ use std::ops;
 use crate::poly::mono::*;
 use crate::poly::*;
 
-impl ops::Add<Poly> for Poly {
+impl<T: Field> ops::Add<Poly<T>> for Poly<T> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
@@ -27,25 +27,10 @@ impl ops::Add<Poly> for Poly {
                 if let Some(rhs_term) = rhs_term_iter.peek() {
                     match grevlex(lhs_term, rhs_term) {
                         Ordering::Equal => {
-                            let den_gcd = gcd(lhs_term.den, rhs_term.den);
-
-                            let (new_num, new_den) = {
-                                let new_num = lhs_term.num * rhs_term.den / den_gcd
-                                    + rhs_term.num * lhs_term.den / den_gcd;
-                                let new_den = lhs_term.den * rhs_term.den / den_gcd;
-
-                                let new_gcd = gcd(new_num, new_den);
-                                if new_den / new_gcd > 0 {
-                                    (new_num / new_gcd, new_den / new_gcd)
-                                } else {
-                                    (-new_num / new_gcd, -new_den / new_gcd)
-                                }
-                            };
-
-                            if new_num != 0 {
+                            let new_val = lhs_term.val.clone() + rhs_term.val.clone();
+                            if !new_val.is_zero() {
                                 new_terms.push_back(Mono {
-                                    num: new_num,
-                                    den: new_den,
+                                    val: new_val,
                                     vars: lhs_term.vars.clone(),
                                 });
                             }
@@ -77,7 +62,7 @@ impl ops::Add<Poly> for Poly {
     }
 }
 
-impl ops::Sub<Poly> for Poly {
+impl<T: Field> ops::Sub<Poly<T>> for Poly<T> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self {
@@ -99,25 +84,11 @@ impl ops::Sub<Poly> for Poly {
                 if let Some(rhs_term) = rhs_term_iter.peek() {
                     match grevlex(lhs_term, rhs_term) {
                         Ordering::Equal => {
-                            let den_gcd = gcd(lhs_term.den, rhs_term.den);
+                            let new_val = lhs_term.val.clone() - rhs_term.val.clone();
 
-                            let (new_num, new_den) = {
-                                let new_num = lhs_term.num * rhs_term.den / den_gcd
-                                    - rhs_term.num * lhs_term.den / den_gcd;
-                                let new_den = lhs_term.den * rhs_term.den / den_gcd;
-
-                                let new_gcd = gcd(new_num, new_den);
-                                if new_den / new_gcd > 0 {
-                                    (new_num / new_gcd, new_den / new_gcd)
-                                } else {
-                                    (-new_num / new_gcd, -new_den / new_gcd)
-                                }
-                            };
-
-                            if new_num != 0 {
+                            if !new_val.is_zero() {
                                 new_terms.push_back(Mono {
-                                    num: new_num,
-                                    den: new_den,
+                                    val: new_val,
                                     vars: lhs_term.vars.clone(),
                                 });
                             }
@@ -127,7 +98,7 @@ impl ops::Sub<Poly> for Poly {
 
                         Ordering::Greater => {
                             let mut rhs_term = rhs_term_iter.next().unwrap();
-                            rhs_term.num *= -1;
+                            rhs_term.val = T::zero() - rhs_term.val;
                             new_terms.push_back(rhs_term);
                         }
                         Ordering::Less => {
@@ -140,7 +111,7 @@ impl ops::Sub<Poly> for Poly {
                     lhs_term_iter.next();
                 }
             } else if let Some(mut rhs_term) = rhs_term_iter.next() {
-                rhs_term.num *= -1;
+                rhs_term.val = T::zero() - rhs_term.val;
                 new_terms.push_back(rhs_term);
             } else {
                 break;
@@ -151,7 +122,7 @@ impl ops::Sub<Poly> for Poly {
     }
 }
 
-impl ops::Mul<Poly> for Poly {
+impl<T: Field> ops::Mul<Poly<T>> for Poly<T> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self {
@@ -159,8 +130,8 @@ impl ops::Mul<Poly> for Poly {
     }
 }
 
-impl Poly {
-    pub fn mul_ref(&self, other: &Poly) -> Poly {
+impl<T: Field> Poly<T> {
+    pub fn mul_ref(&self, other: &Poly<T>) -> Poly<T> {
         let mut new = Self::constant(0);
 
         for lhs_term in &self.terms {
@@ -176,7 +147,7 @@ impl Poly {
         new
     }
 
-    pub fn compound_divide(&self, divisors: &Vec<Poly>) -> (Vec<Poly>, Poly) {
+    pub fn compound_divide(&self, divisors: &Vec<Poly<T>>) -> (Vec<Poly<T>>, Poly<T>) {
         if divisors.is_empty() {
             return (vec![], self.clone());
         }
@@ -229,7 +200,7 @@ impl Poly {
         (quotients, rem)
     }
 
-    pub fn try_divide(&self, divisor: &Poly) -> Option<Poly> {
+    pub fn try_divide(&self, divisor: &Poly<T>) -> Option<Poly<T>> {
         let (quots, rem) = self.compound_divide(&vec![divisor.clone()]);
 
         if rem.is_zero() {
@@ -239,12 +210,11 @@ impl Poly {
         }
     }
 
-    pub fn derivative(&self, by: usize) -> Poly {
+    pub fn derivative(&self, by: usize) -> Poly<T> {
         let mut new_terms = VecDeque::new();
         for term in &self.terms {
             let mut new_term = Mono {
-                num: term.num,
-                den: term.den,
+                val: term.val.clone(),
                 vars: vec![],
             };
             let mut found = false;
@@ -252,11 +222,7 @@ impl Poly {
                 if *var == by {
                     found = true;
                     if *pow > 1 {
-                        if new_term.den % (*pow as i64) == 0 {
-                            new_term.den /= *pow as i64;
-                        } else {
-                            new_term.num *= *pow as i64;
-                        }
+                        new_term.val = new_term.val * *pow as i64;
                         new_term.vars.push((*var, *pow - 1));
                     }
                 } else {
@@ -277,21 +243,21 @@ impl Poly {
 mod tests {
     use rand::prelude::*;
     use std::rc::Rc;
-
+    use crate::rational::Rat;
     use super::Poly;
 
     #[test]
     fn arith() {
         let var_dict = Rc::new(vec!["a".to_string(), "b".to_string(), "c".to_string()]);
 
-        let a = Poly::var(0, 2) * Poly::constant(3);
+        let a: Poly<Rat> = Poly::var(0, 2) * Poly::constant(3);
         let b = Poly::var(1, 1) * Poly::constant(4);
         let c = Poly::constant(2);
 
         assert_eq!("3a^2 + 4b + 2", (c + b + a).format(&var_dict));
 
         // (a + 1)(a + 1)
-        let a = (Poly::var(0, 1) + Poly::constant(1)) * (Poly::var(0, 1) + Poly::constant(1));
+        let a: Poly<Rat> = (Poly::var(0, 1) + Poly::constant(1)) * (Poly::var(0, 1) + Poly::constant(1));
         // a^2 + 2a + 1
         let b = Poly::var(0, 2) + Poly::constant(2) * Poly::var(0, 1) + Poly::constant(1);
 
@@ -302,7 +268,7 @@ mod tests {
     fn arith_fuzz() {
         let mut rng = SmallRng::seed_from_u64(1);
 
-        fn create_random_poly(rng: &mut SmallRng, term_max: i32) -> Poly {
+        fn create_random_poly(rng: &mut SmallRng, term_max: i32) -> Poly<Rat> {
             let mut p = Poly::constant(0);
 
             for _ in 0..rng.gen_range(0..term_max + 1) {
@@ -344,7 +310,7 @@ mod tests {
     fn derivative() {
         let var_dict = vec!["x".to_string(), "y".to_string(), "z".to_string()];
 
-        let p = Poly::var(0, 2) * Poly::var(1, 2) * Poly::constant(3)
+        let p: Poly<Rat> = Poly::var(0, 2) * Poly::var(1, 2) * Poly::constant(3)
             + Poly::var(0, 1) * Poly::var(2, 1);
 
         assert_eq!(
