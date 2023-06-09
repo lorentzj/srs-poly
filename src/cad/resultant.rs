@@ -75,6 +75,8 @@ fn syl_k<T: Field>(a_coefs: &Vec<Poly<T>>, b_coefs: &Vec<Poly<T>>, k: usize) -> 
 // deg(b) <= deg(a)
 pub fn subresultants<T: Field>(a: &Poly<T>, b: &Poly<T>, var: usize) -> Vec<Vec<Poly<T>>> {
     let mut srs = vec![a.coefs(var), b.coefs(var)];
+
+
     let (_n, m) = (srs[0].len() - 1, srs[1].len() - 1);
 
     for k in (0..m).rev() {

@@ -1,8 +1,10 @@
-use std::ops;
+use std::{ops, hash::Hash};
+use std::fmt::Debug;
 use crate::rational::Rat;
 
 pub trait Field = 
     Clone
+     + Debug
      + From<i64>
      + TryInto<i64>
      + Into<f64>
@@ -15,7 +17,8 @@ pub trait Field =
      + ops::Mul<i64, Output = Self>
      + ops::Div<Output = Self>
      + Zero
-     + One;
+     + One
+     + Hash;
 
 pub trait Zero {
     fn zero() -> Self;

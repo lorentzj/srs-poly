@@ -103,7 +103,7 @@ impl System<Rat> {
             keep2.push(rem);
         }
 
-        keep2.sort_by(|p, q| grevlex(&p.lt_mono(), &q.lt_mono()));
+        keep2.sort_by(|p, q| grevlex(&p.lt_mono(), &q.lt_mono()).reverse());
 
         sys.members = keep2.iter().map(|p| p.norm()).collect();
 

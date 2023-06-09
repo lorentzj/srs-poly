@@ -168,7 +168,7 @@ macro_rules! system {
                     let mut acc = Poly::constant(0);
 
                     for term in terms {
-                        acc = acc + Poly { terms: VecDeque::from(vec![term]) };
+                        acc = acc + Poly { terms: vec![term] };
                     }
 
                     acc

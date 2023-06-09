@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
-use std::collections::VecDeque;
 use std::ops;
+use std::collections::VecDeque;
 
 use crate::poly::mono::*;
 use crate::poly::*;
@@ -17,7 +17,7 @@ impl<T: Field> ops::Add<Poly<T>> for Poly<T> {
             return self;
         }
 
-        let mut new_terms = VecDeque::from(vec![]);
+        let mut new_terms = vec![];
 
         let mut lhs_term_iter = self.terms.into_iter().peekable();
         let mut rhs_term_iter = rhs.terms.into_iter().peekable();
@@ -29,7 +29,7 @@ impl<T: Field> ops::Add<Poly<T>> for Poly<T> {
                         Ordering::Equal => {
                             let new_val = lhs_term.val.clone() + rhs_term.val.clone();
                             if !new_val.is_zero() {
-                                new_terms.push_back(Mono {
+                                new_terms.push(Mono {
                                     val: new_val,
                                     vars: lhs_term.vars.clone(),
                                 });
@@ -39,20 +39,20 @@ impl<T: Field> ops::Add<Poly<T>> for Poly<T> {
                         }
 
                         Ordering::Greater => {
-                            new_terms.push_back(rhs_term.clone());
+                            new_terms.push(rhs_term.clone());
                             rhs_term_iter.next();
                         }
                         Ordering::Less => {
-                            new_terms.push_back(lhs_term.clone());
+                            new_terms.push(lhs_term.clone());
                             lhs_term_iter.next();
                         }
                     }
                 } else {
-                    new_terms.push_back(lhs_term.clone());
+                    new_terms.push(lhs_term.clone());
                     lhs_term_iter.next();
                 }
             } else if let Some(rhs_term) = rhs_term_iter.next() {
-                new_terms.push_back(rhs_term);
+                new_terms.push(rhs_term);
             } else {
                 break;
             }
@@ -74,7 +74,7 @@ impl<T: Field> ops::Sub<Poly<T>> for Poly<T> {
             return self;
         }
 
-        let mut new_terms = VecDeque::from(vec![]);
+        let mut new_terms = vec![];
 
         let mut lhs_term_iter = self.terms.into_iter().peekable();
         let mut rhs_term_iter = rhs.terms.into_iter().peekable();
@@ -87,7 +87,7 @@ impl<T: Field> ops::Sub<Poly<T>> for Poly<T> {
                             let new_val = lhs_term.val.clone() - rhs_term.val.clone();
 
                             if !new_val.is_zero() {
-                                new_terms.push_back(Mono {
+                                new_terms.push(Mono {
                                     val: new_val,
                                     vars: lhs_term.vars.clone(),
                                 });
@@ -98,21 +98,21 @@ impl<T: Field> ops::Sub<Poly<T>> for Poly<T> {
 
                         Ordering::Greater => {
                             let mut rhs_term = rhs_term_iter.next().unwrap();
-                            rhs_term.val = T::zero() - rhs_term.val;
-                            new_terms.push_back(rhs_term);
+                            rhs_term.val = rhs_term.val * -1;
+                            new_terms.push(rhs_term);
                         }
                         Ordering::Less => {
-                            new_terms.push_back(lhs_term.clone());
+                            new_terms.push(lhs_term.clone());
                             lhs_term_iter.next();
                         }
                     }
                 } else {
-                    new_terms.push_back(lhs_term.clone());
+                    new_terms.push(lhs_term.clone());
                     lhs_term_iter.next();
                 }
             } else if let Some(mut rhs_term) = rhs_term_iter.next() {
-                rhs_term.val = T::zero() - rhs_term.val;
-                new_terms.push_back(rhs_term);
+                rhs_term.val = rhs_term.val * -1;
+                new_terms.push(rhs_term);
             } else {
                 break;
             }
@@ -137,7 +137,7 @@ impl<T: Field> Poly<T> {
         for lhs_term in &self.terms {
             for rhs_term in &other.terms {
                 let new_term = Poly {
-                    terms: VecDeque::from(vec![monomial_mul(lhs_term, rhs_term)]),
+                    terms: vec![monomial_mul(lhs_term, rhs_term)],
                 };
 
                 new = new + new_term;
@@ -155,25 +155,23 @@ impl<T: Field> Poly<T> {
         let mut dividend = self.clone();
 
         let mut rem = Poly::constant(0);
-        let mut quotients: Vec<_> = std::iter::repeat(Poly::constant(0))
+        let mut quotients: Vec<VecDeque<Mono<T>>> = std::iter::repeat(VecDeque::from(vec![]))
             .take(divisors.len())
             .collect();
 
         let mut curr_divisor = 0;
 
         while !dividend.is_zero() {
-            let self_lt = dividend.terms[0].clone();
+            let self_lt = dividend.lt_mono();
             if !divisors[curr_divisor].terms.is_empty() {
-                let div_lt = &divisors[curr_divisor].terms[0];
+                let div_lt = &divisors[curr_divisor].lt_mono();
                 let self_over_div_lt = monomial_div(&self_lt, div_lt);
 
                 if let Some(self_over_div_lt) = self_over_div_lt {
-                    quotients[curr_divisor]
-                        .terms
-                        .push_back(self_over_div_lt.clone());
+                    quotients[curr_divisor].push_front(self_over_div_lt.clone());
 
                     let self_over_div_lt = Poly {
-                        terms: VecDeque::from(vec![self_over_div_lt]),
+                        terms: vec![self_over_div_lt],
                     };
 
                     dividend = dividend - (self_over_div_lt.mul_ref(&divisors[curr_divisor]));
@@ -187,15 +185,17 @@ impl<T: Field> Poly<T> {
 
             if curr_divisor == divisors.len() {
                 let self_lt = Poly {
-                    terms: VecDeque::from(vec![self_lt.clone()]),
+                    terms: vec![self_lt.clone()],
                 };
 
-                dividend.terms.pop_front();
+                dividend.terms.pop();
 
                 rem = rem + self_lt;
                 curr_divisor = 0;
             }
         }
+
+        let quotients = quotients.into_iter().map(|v| Poly { terms: Vec::from(v) }).collect();
 
         (quotients, rem)
     }
@@ -211,7 +211,7 @@ impl<T: Field> Poly<T> {
     }
 
     pub fn derivative(&self, by: usize) -> Poly<T> {
-        let mut new_terms = VecDeque::new();
+        let mut new_terms = vec![];
         for term in &self.terms {
             let mut new_term = Mono {
                 val: term.val.clone(),
@@ -231,7 +231,7 @@ impl<T: Field> Poly<T> {
             }
 
             if found {
-                new_terms.push_back(new_term);
+                new_terms.push(new_term);
             }
         }
 
@@ -254,7 +254,7 @@ mod tests {
         let b = Poly::var(1, 1) * Poly::constant(4);
         let c = Poly::constant(2);
 
-        assert_eq!("3a^2 + 4b + 2", (c + b + a).format(&var_dict));
+        assert_eq!("3a^2 + 4b - 2", (b + a - c).format(&var_dict));
 
         // (a + 1)(a + 1)
         let a: Poly<Rat> = (Poly::var(0, 1) + Poly::constant(1)) * (Poly::var(0, 1) + Poly::constant(1));
@@ -287,9 +287,9 @@ mod tests {
         }
 
         for _ in 0..1000 {
-            let dividend = create_random_poly(&mut rng, 6);
+            let dividend = create_random_poly(&mut rng, 10);
             let n_divs = rng.gen_range(0..4);
-            let divisors: Vec<_> = std::iter::repeat_with(|| create_random_poly(&mut rng, 4))
+            let divisors: Vec<_> = std::iter::repeat_with(|| create_random_poly(&mut rng, 6))
                 .take(n_divs)
                 .collect();
 
@@ -304,6 +304,17 @@ mod tests {
 
             assert_eq!(calculated_dividend, dividend);
         }
+    }
+
+    #[test]
+    fn tricky_order() {
+        let sys = crate::system! {
+            y^2 + 2*y + 1,
+            y + 1
+        };
+
+        assert_eq!("y + 1", (sys.members[0].try_divide(&sys.members[1]).unwrap()).format(&sys.var_dict));
+
     }
 
     #[test]

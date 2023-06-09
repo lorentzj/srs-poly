@@ -3,7 +3,7 @@ use std::ops;
 use crate::field;
 
 // overflow-safe 127 bit rational type
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Rat {
     pub num: i64,
     pub den: i64
@@ -281,7 +281,19 @@ impl ops::Div<Rat> for Rat {
 pub fn gcd(mut a: i64, mut b: i64) -> i64 {
     let mut shift = 0;
 
-    while (a | b) & 0x1 == 0 {
+    while (a | b) & 0xF == 0 {
+        a >>= 4;
+        b >>= 4;
+        shift += 4;
+    }
+
+    if (a | b) & 0x3 == 0 {
+        a >>= 2;
+        b >>= 2;
+        shift += 2;
+    }
+
+    if (a | b) & 0x1 == 0 {
         a >>= 1;
         b >>= 1;
         shift += 1;
@@ -301,6 +313,7 @@ pub fn gcd(mut a: i64, mut b: i64) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::Rat;
+    use super::gcd;
 
     #[test]
     fn arith() {
@@ -322,5 +335,13 @@ mod tests {
         let c = a + b;
         assert_eq!(1., c.into());
         assert_eq!(f64::from(a) + f64::from(b), f64::from(c));
+    }
+
+    #[test]
+    fn gcd_shifts() {
+        let a = 16 * 74;
+        let b = 16 * 91;
+
+        assert_eq!(16,  gcd(a, b));
     }
 }

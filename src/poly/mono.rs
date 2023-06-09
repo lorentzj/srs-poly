@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use super::Field;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Mono<T: Field> {
     pub val: T,
     pub vars: Vec<(usize, u64)>,
@@ -64,16 +64,16 @@ pub fn grevlex<T: Field>(lhs: &Mono<T>, rhs: &Mono<T>) -> Ordering {
     let rhs_total_degree = rhs.vars.iter().fold(0, |acc, (_, pow)| acc + pow);
 
     match lhs_total_degree.cmp(&rhs_total_degree) {
-        Ordering::Less => Ordering::Greater,
-        Ordering::Greater => Ordering::Less,
+        Ordering::Less => Ordering::Less,
+        Ordering::Greater => Ordering::Greater,
         Ordering::Equal => {
             for ((lhs_var, lhs_pow), (rhs_var, rhs_pow)) in lhs.vars.iter().zip(&rhs.vars) {
                 match lhs_var.cmp(rhs_var) {
-                    Ordering::Less => return Ordering::Less,
-                    Ordering::Greater => return Ordering::Greater,
+                    Ordering::Less => return Ordering::Greater,
+                    Ordering::Greater => return Ordering::Less,
                     Ordering::Equal => match lhs_pow.cmp(rhs_pow) {
-                        Ordering::Less => return Ordering::Greater,
-                        Ordering::Greater => return Ordering::Less,
+                        Ordering::Less => return Ordering::Less,
+                        Ordering::Greater => return Ordering::Greater,
                         Ordering::Equal => continue,
                     },
                 }
@@ -328,7 +328,7 @@ z
 
         terms.sort_by(|a, b| grevlex(a, b));
 
-        for (i, term) in terms.iter().enumerate() {
+        for (i, term) in terms.iter().rev().enumerate() {
             assert_eq!(expected_sort[i], print_exps(&term, &var_dict));
         }
     }

@@ -3,7 +3,6 @@ pub mod mono;
 pub mod poly_arithmetic;
 pub mod system;
 
-use std::collections::VecDeque;
 use std::fmt::Write;
 
 use crate::rational::{Rat, gcd};
@@ -11,23 +10,23 @@ use crate::poly::mono::*;
 
 use crate::field::Field;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Poly<T: Field> {
-    pub terms: VecDeque<Mono<T>>,
+    pub terms: Vec<Mono<T>>,
 }
 
 impl<T: Field> Poly<T> {
     pub fn var(var: usize, pow: u64) -> Self {
         if pow == 0 {
             Self {
-                terms: VecDeque::from(vec![Mono {
+                terms: Vec::from(vec![Mono {
                     val: T::one(),
                     vars: vec![],
                 }]),
             }
         } else {
             Self {
-                terms: VecDeque::from(vec![Mono {
+                terms: Vec::from(vec![Mono {
                     val: T::one(),
                     vars: vec![(var, pow)],
                 }]),
@@ -38,12 +37,12 @@ impl<T: Field> Poly<T> {
     pub fn constant(val: i64) -> Self {
         Self {
             terms: if val == 0 {
-                VecDeque::new()
+                vec![]
             } else {
-                VecDeque::from(vec![Mono {
+                vec![Mono {
                     val: T::from(val),
                     vars: vec![],
-                }])
+                }]
             },
         }
     }
@@ -67,18 +66,18 @@ impl<T: Field> Poly<T> {
     }
 
     pub fn lt(&self) -> Poly<T> {
-        match self.terms.front() {
+        match self.terms.last() {
             Some(m) => Poly {
-                terms: VecDeque::from(vec![m.clone()]),
+                terms: vec![m.clone()],
             },
             None => Poly {
-                terms: VecDeque::from(vec![]),
+                terms: vec![],
             },
         }
     }
 
     pub fn lt_mono(&self) -> Mono<T> {
-        match self.terms.front() {
+        match self.terms.last() {
             Some(m) => m.clone(),
             None => Mono {
                 val: T::zero(),
@@ -92,7 +91,7 @@ impl<T: Field> Poly<T> {
         let q_lt = q.lt();
 
         let lcm_lmp_lmq = Poly {
-            terms: VecDeque::from(vec![monomial_lcm(p_lt.lt_mono(), q_lt.lt_mono())]),
+            terms: vec![monomial_lcm(p_lt.lt_mono(), q_lt.lt_mono())],
         };
 
         if let (Some(coef_p), Some(coef_q)) =
@@ -115,12 +114,12 @@ impl<T: Field> Poly<T> {
         let deg = self.deg(var);
         let mut coefs: Vec<_> = std::iter::repeat(Poly::constant(0)).take(deg + 1).collect();
 
-        for term in &self.terms {
+        for term in self.terms.iter().rev() {
             let (term_deg, term_coef) = term.coef(var);
 
             coefs[deg - term_deg] = coefs[deg - term_deg].clone()
                 + Poly {
-                    terms: VecDeque::from(vec![term_coef]),
+                    terms: vec![term_coef],
                 };
         }
 
@@ -135,7 +134,7 @@ impl Poly<Rat> {
         let mut all_terms_den = 1;
         let mut all_terms_gcd = 1;
 
-        if let Some(t) = new.terms.front() {
+        if let Some(t) = new.terms.last() {
             all_terms_gcd = t.val.num;
         }
 
@@ -151,7 +150,7 @@ impl Poly<Rat> {
             all_terms_gcd = gcd(term.val.num, all_terms_gcd);
         }
 
-        if let Some(t) = new.terms.front_mut() {
+        if let Some(t) = new.terms.last_mut() {
             if t.val.num < 0 {
                 all_terms_gcd = -all_terms_gcd.abs();
             } else {
@@ -174,7 +173,7 @@ impl<T: Field> Poly<T> {
             write!(s, "0").unwrap();
         }
 
-        for (i, Mono { val, vars }) in (self.terms).iter().enumerate() {
+        for (i, Mono { val, vars }) in (self.terms).iter().rev().enumerate() {
             let coef: f64 = val.clone().into();
             if coef != 1. || vars.is_empty() {
                 if coef < 0. {
