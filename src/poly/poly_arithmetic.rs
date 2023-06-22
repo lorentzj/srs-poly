@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
-use std::ops;
 use std::collections::VecDeque;
+use std::ops;
 
 use crate::poly::mono::*;
 use crate::poly::*;
@@ -65,60 +65,12 @@ impl<T: Field> ops::Add<Poly<T>> for Poly<T> {
 impl<T: Field> ops::Sub<Poly<T>> for Poly<T> {
     type Output = Self;
 
-    fn sub(self, rhs: Self) -> Self {
-        if self.terms.is_empty() {
-            return Self::constant(-1) * rhs;
+    fn sub(self, mut rhs: Self) -> Self {
+        for term in &mut rhs.terms {
+            term.val = term.val.clone() * -1;
         }
 
-        if rhs.terms.is_empty() {
-            return self;
-        }
-
-        let mut new_terms = vec![];
-
-        let mut lhs_term_iter = self.terms.into_iter().peekable();
-        let mut rhs_term_iter = rhs.terms.into_iter().peekable();
-
-        loop {
-            if let Some(lhs_term) = lhs_term_iter.peek() {
-                if let Some(rhs_term) = rhs_term_iter.peek() {
-                    match grevlex(lhs_term, rhs_term) {
-                        Ordering::Equal => {
-                            let new_val = lhs_term.val.clone() - rhs_term.val.clone();
-
-                            if !new_val.is_zero() {
-                                new_terms.push(Mono {
-                                    val: new_val,
-                                    vars: lhs_term.vars.clone(),
-                                });
-                            }
-                            lhs_term_iter.next();
-                            rhs_term_iter.next();
-                        }
-
-                        Ordering::Greater => {
-                            let mut rhs_term = rhs_term_iter.next().unwrap();
-                            rhs_term.val = rhs_term.val * -1;
-                            new_terms.push(rhs_term);
-                        }
-                        Ordering::Less => {
-                            new_terms.push(lhs_term.clone());
-                            lhs_term_iter.next();
-                        }
-                    }
-                } else {
-                    new_terms.push(lhs_term.clone());
-                    lhs_term_iter.next();
-                }
-            } else if let Some(mut rhs_term) = rhs_term_iter.next() {
-                rhs_term.val = rhs_term.val * -1;
-                new_terms.push(rhs_term);
-            } else {
-                break;
-            }
-        }
-
-        Self { terms: new_terms }
+        self + rhs
     }
 }
 
@@ -132,7 +84,7 @@ impl<T: Field> ops::Mul<Poly<T>> for Poly<T> {
 
 impl<T: Field> Poly<T> {
     pub fn mul_ref(&self, other: &Poly<T>) -> Poly<T> {
-        let mut new = Self::constant(0);
+        let mut new = Self::constant(T::zero());
 
         for lhs_term in &self.terms {
             for rhs_term in &other.terms {
@@ -154,7 +106,7 @@ impl<T: Field> Poly<T> {
 
         let mut dividend = self.clone();
 
-        let mut rem = Poly::constant(0);
+        let mut rem = Poly::constant(T::zero());
         let mut quotients: Vec<VecDeque<Mono<T>>> = std::iter::repeat(VecDeque::from(vec![]))
             .take(divisors.len())
             .collect();
@@ -195,7 +147,12 @@ impl<T: Field> Poly<T> {
             }
         }
 
-        let quotients = quotients.into_iter().map(|v| Poly { terms: Vec::from(v) }).collect();
+        let quotients = quotients
+            .into_iter()
+            .map(|v| Poly {
+                terms: Vec::from(v),
+            })
+            .collect();
 
         (quotients, rem)
     }
@@ -241,25 +198,34 @@ impl<T: Field> Poly<T> {
 
 #[cfg(test)]
 mod tests {
+    use super::Poly;
+    use crate::field::Zero;
+    use crate::rational::Rat;
     use rand::prelude::*;
     use std::rc::Rc;
-    use crate::rational::Rat;
-    use super::Poly;
 
     #[test]
     fn arith() {
         let var_dict = Rc::new(vec!["a".to_string(), "b".to_string(), "c".to_string()]);
 
-        let a: Poly<Rat> = Poly::var(0, 2) * Poly::constant(3);
-        let b = Poly::var(1, 1) * Poly::constant(4);
-        let c = Poly::constant(2);
+        let a = Poly::var(0, 2) * Poly::constant(Rat::from(3));
+        let b = Poly::var(1, 1) * Poly::constant(Rat::from(4));
+        let c = Poly::constant(Rat::from(2));
+
+        println!("{}", (a).format(&var_dict));
+        println!("{}", (b).format(&var_dict));
+        println!("{}", (c).format(&var_dict));
+        println!("{}", (a.clone() + b.clone()).format(&var_dict));
 
         assert_eq!("3a^2 + 4b - 2", (b + a - c).format(&var_dict));
 
         // (a + 1)(a + 1)
-        let a: Poly<Rat> = (Poly::var(0, 1) + Poly::constant(1)) * (Poly::var(0, 1) + Poly::constant(1));
+        let a: Poly<Rat> = (Poly::var(0, 1) + Poly::constant(Rat::from(1)))
+            * (Poly::var(0, 1) + Poly::constant(Rat::from(1)));
         // a^2 + 2a + 1
-        let b = Poly::var(0, 2) + Poly::constant(2) * Poly::var(0, 1) + Poly::constant(1);
+        let b = Poly::var(0, 2)
+            + Poly::constant(Rat::from(2)) * Poly::var(0, 1)
+            + Poly::constant(Rat::from(1));
 
         assert!(a == b);
     }
@@ -269,7 +235,7 @@ mod tests {
         let mut rng = SmallRng::seed_from_u64(1);
 
         fn create_random_poly(rng: &mut SmallRng, term_max: i32) -> Poly<Rat> {
-            let mut p = Poly::constant(0);
+            let mut p = Poly::constant(Rat::zero());
 
             for _ in 0..rng.gen_range(0..term_max + 1) {
                 let coef = rng.gen_range(-6..6);
@@ -277,7 +243,7 @@ mod tests {
                 let ypow = rng.gen_range(0..2);
                 let zpow = rng.gen_range(0..3);
 
-                p = p + Poly::constant(coef)
+                p = p + Poly::constant(Rat::from(coef))
                     * Poly::var(0, xpow)
                     * Poly::var(1, ypow)
                     * Poly::var(2, zpow);
@@ -299,7 +265,7 @@ mod tests {
                 .clone()
                 .into_iter()
                 .zip(divisors.clone())
-                .fold(Poly::constant(0), |acc, (x, y)| acc + x * y)
+                .fold(Poly::constant(Rat::zero()), |acc, (x, y)| acc + x * y)
                 + rem.clone();
 
             assert_eq!(calculated_dividend, dividend);
@@ -309,19 +275,21 @@ mod tests {
     #[test]
     fn tricky_order() {
         let sys = crate::system! {
-            y^2 + 2*y + 1,
-            y + 1
+            y^2 - 2*y + 1,
+            y - 1
         };
 
-        assert_eq!("y + 1", (sys.members[0].try_divide(&sys.members[1]).unwrap()).format(&sys.var_dict));
-
+        assert_eq!(
+            "y - 1",
+            (sys.members[0].try_divide(&sys.members[1]).unwrap()).format(&sys.var_dict)
+        );
     }
 
     #[test]
     fn derivative() {
         let var_dict = vec!["x".to_string(), "y".to_string(), "z".to_string()];
 
-        let p: Poly<Rat> = Poly::var(0, 2) * Poly::var(1, 2) * Poly::constant(3)
+        let p: Poly<Rat> = Poly::var(0, 2) * Poly::var(1, 2) * Poly::constant(Rat::from(3))
             + Poly::var(0, 1) * Poly::var(2, 1);
 
         assert_eq!(

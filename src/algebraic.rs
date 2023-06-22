@@ -1,15 +1,23 @@
 use crate::field::Field;
 
+pub enum Root<T: Field> {
+    Interval(T, T),
+    Point(T)
+}
+
 pub struct Algebraic<T: Field> {
     pub poly: Vec<T>,
-    pub interval: (T, T)
+    pub roots: Vec<Root<T>>
 }
 
-pub fn isolate_roots<T: Field>(_coefs: Vec<T>) -> Vec<Algebraic<T>> {
-    vec![]
+pub fn isolate_roots<T: Field>(poly: Vec<T>) -> Algebraic<T> {
+    Algebraic {
+        poly,
+        roots: vec![]
+    }
 }
 
-fn derivative<T: Field>(mut coefs: Vec<T>) -> Vec<T> {
+pub fn derivative<T: Field>(mut coefs: Vec<T>) -> Vec<T> {
     coefs.pop();
     let deg = coefs.len() - 1;
 
@@ -21,7 +29,7 @@ fn derivative<T: Field>(mut coefs: Vec<T>) -> Vec<T> {
 }
 
 // Yun's algorithm
-pub fn square_free<T: Field>(_coefs: Vec<T>) -> Vec<T> {
+pub fn square_free<T: Field>(_poly: Vec<T>) -> Vec<Vec<T>> {
     vec![]
 }
 

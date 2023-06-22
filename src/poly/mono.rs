@@ -89,7 +89,7 @@ pub fn monomial_div<T: Field>(lhs: &Mono<T>, rhs: &Mono<T>) -> Option<Mono<T>> {
         None
     } else if lhs.val.is_zero() {
         Some(Mono {
-            val: T::from(0),
+            val: T::zero(),
             vars: vec![],
         })
     } else {
@@ -131,7 +131,10 @@ pub fn monomial_div<T: Field>(lhs: &Mono<T>, rhs: &Mono<T>) -> Option<Mono<T>> {
             vars.push((*lhs_var, *lhs_pow));
         }
 
-        Some(Mono { val: lhs.val.clone() / rhs.val.clone(), vars })
+        Some(Mono {
+            val: lhs.val.clone() / rhs.val.clone(),
+            vars,
+        })
     }
 }
 
@@ -226,9 +229,9 @@ pub fn monomial_lcm<T: Field>(lhs: Mono<T>, rhs: Mono<T>) -> Mono<T> {
 
 #[cfg(test)]
 mod tests {
-    use rand::prelude::*;
-    use crate::rational::Rat;
     use super::*;
+    use crate::rational::Rat;
+    use rand::prelude::*;
 
     #[test]
     fn ordering() {

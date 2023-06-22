@@ -1,12 +1,12 @@
 use std::collections::VecDeque;
 
-use crate::poly::Poly;
 use crate::field::Field;
+use crate::poly::Poly;
 
 // Bareiss algorithm
 fn determinant<T: Field>(mut mat: Vec<Vec<Poly<T>>>, size: usize) -> Poly<T> {
     if size == 0 {
-        Poly::constant(1)
+        Poly::constant(T::one())
     } else if size == 1 {
         mat.pop().unwrap().pop().unwrap()
     } else if size == 2 {
@@ -48,7 +48,7 @@ fn syl_k<T: Field>(a_coefs: &Vec<Poly<T>>, b_coefs: &Vec<Poly<T>>, k: usize) -> 
         let mut row = vec![];
         for j in 0..(a_deg + b_deg - k) {
             if i > j || j > i + a_deg {
-                row.push(Poly::constant(0))
+                row.push(Poly::constant(T::zero()))
             } else {
                 row.push(a_coefs[j - i].clone())
             }
@@ -60,7 +60,7 @@ fn syl_k<T: Field>(a_coefs: &Vec<Poly<T>>, b_coefs: &Vec<Poly<T>>, k: usize) -> 
         let mut row = vec![];
         for j in 0..(a_deg + b_deg - k) {
             if i > j || j > i + b_deg {
-                row.push(Poly::constant(0))
+                row.push(Poly::constant(T::zero()))
             } else {
                 row.push(b_coefs[j - i].clone())
             }
@@ -75,7 +75,6 @@ fn syl_k<T: Field>(a_coefs: &Vec<Poly<T>>, b_coefs: &Vec<Poly<T>>, k: usize) -> 
 // deg(b) <= deg(a)
 pub fn subresultants<T: Field>(a: &Poly<T>, b: &Poly<T>, var: usize) -> Vec<Vec<Poly<T>>> {
     let mut srs = vec![a.coefs(var), b.coefs(var)];
-
 
     let (_n, m) = (srs[0].len() - 1, srs[1].len() - 1);
 

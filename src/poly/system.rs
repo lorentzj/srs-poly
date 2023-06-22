@@ -13,10 +13,6 @@ pub struct System<T: Field> {
 }
 
 impl<T: Field> System<T> {
-    pub fn constant(&self, val: i64) -> Poly<T> {
-        Poly::constant(val)
-    }
-
     pub fn var(&self, var: &str, pow: u64) -> Poly<T> {
         match self.var_dict.iter().position(|v| v == var) {
             Some(i) => Poly::var(i, pow),
@@ -30,6 +26,10 @@ impl<T: Field> System<T> {
 }
 
 impl System<Rat> {
+    pub fn constant(&self, val: i64) -> Poly<Rat> {
+        Poly::constant(Rat::from(val))
+    }
+
     pub fn gb(&self) -> System<Rat> {
         let mut sys = self.clone();
 
@@ -111,7 +111,7 @@ impl System<Rat> {
     }
 }
 
-impl<T: Field> fmt::Debug for System<T> {
+impl fmt::Debug for System<Rat> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[")?;
         for (i, p) in self.members.iter().enumerate() {

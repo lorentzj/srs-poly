@@ -5,8 +5,8 @@ pub mod system;
 
 use std::fmt::Write;
 
-use crate::rational::{Rat, gcd};
 use crate::poly::mono::*;
+use crate::rational::{gcd, Rat};
 
 use crate::field::Field;
 
@@ -15,7 +15,36 @@ pub struct Poly<T: Field> {
     pub terms: Vec<Mono<T>>,
 }
 
+impl Poly<Rat> {
+    pub fn get_constant_val(&self) -> Option<i64> {
+        if self.terms.is_empty() {
+            Some(0)
+        } else if self.terms.len() == 1 {
+            if self.terms[0].vars.is_empty() {
+                self.terms[0].val.clone().try_into().ok()
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
 impl<T: Field> Poly<T> {
+    pub fn constant(val: T) -> Self {
+        Self {
+            terms: if val.is_zero() {
+                vec![]
+            } else {
+                vec![Mono {
+                    val,
+                    vars: vec![],
+                }]
+            },
+        }
+    }
+
     pub fn var(var: usize, pow: u64) -> Self {
         if pow == 0 {
             Self {
@@ -34,33 +63,6 @@ impl<T: Field> Poly<T> {
         }
     }
 
-    pub fn constant(val: i64) -> Self {
-        Self {
-            terms: if val == 0 {
-                vec![]
-            } else {
-                vec![Mono {
-                    val: T::from(val),
-                    vars: vec![],
-                }]
-            },
-        }
-    }
-
-    pub fn get_constant_val(&self) -> Option<i64> {
-        if self.terms.is_empty() {
-            Some(0)
-        } else if self.terms.len() == 1 {
-            if self.terms[0].vars.is_empty() {
-                self.terms[0].val.clone().try_into().ok()
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
     pub fn is_zero(&self) -> bool {
         self.terms.is_empty()
     }
@@ -70,9 +72,7 @@ impl<T: Field> Poly<T> {
             Some(m) => Poly {
                 terms: vec![m.clone()],
             },
-            None => Poly {
-                terms: vec![],
-            },
+            None => Poly { terms: vec![] },
         }
     }
 
@@ -112,7 +112,9 @@ impl<T: Field> Poly<T> {
 
     pub fn coefs(&self, var: usize) -> Vec<Poly<T>> {
         let deg = self.deg(var);
-        let mut coefs: Vec<_> = std::iter::repeat(Poly::constant(0)).take(deg + 1).collect();
+        let mut coefs: Vec<_> = std::iter::repeat(Poly::constant(T::zero()))
+            .take(deg + 1)
+            .collect();
 
         for term in self.terms.iter().rev() {
             let (term_deg, term_coef) = term.coef(var);
@@ -166,7 +168,7 @@ impl Poly<Rat> {
     }
 }
 
-impl<T: Field> Poly<T> {
+impl Poly<Rat> {
     pub fn format(&self, var_dict: &[String]) -> String {
         let mut s = String::new();
         if self.terms.is_empty() {
@@ -219,11 +221,11 @@ mod tests {
         let var_dict = vec!["x".to_string(), "y".to_string(), "z".to_string()];
 
         let a: Poly<Rat> = Poly::var(0, 4);
-        let b: Poly<Rat> = Poly::var(0, 2) * Poly::constant(3);
-        let c: Poly<Rat> = Poly::var(0, 2) * Poly::var(2, 3) * Poly::constant(5);
-        let d: Poly<Rat> = Poly::var(1, 1) * Poly::var(0, 1) * Poly::constant(4);
+        let b: Poly<Rat> = Poly::var(0, 2) * Poly::constant(Rat::from(3));
+        let c: Poly<Rat> = Poly::var(0, 2) * Poly::var(2, 3) * Poly::constant(Rat::from(5));
+        let d: Poly<Rat> = Poly::var(1, 1) * Poly::var(0, 1) * Poly::constant(Rat::from(4));
         let e: Poly<Rat> = Poly::var(2, 1);
-        let f: Poly<Rat> = Poly::constant(2);
+        let f: Poly<Rat> = Poly::constant(Rat::from(2));
 
         let g = a + b + c + d + e + f;
 
