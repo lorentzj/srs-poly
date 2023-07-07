@@ -135,9 +135,15 @@ impl ops::Add<Rat> for Rat {
             let lhs_num = match (rhs.den / den_gcd).checked_mul(self.num) {
                 Some(v) => v,
                 None => {
-                    self.num >>= 1;
-                    self.den >>= 1;
-
+                    if self.num == i64::MIN
+                        || (rhs.den != i64::MIN && self.num.abs() > rhs.den.abs())
+                    {
+                        self.num >>= 1;
+                        self.den >>= 1;
+                    } else {
+                        rhs.num >>= 1;
+                        rhs.den >>= 1;
+                    }
                     continue;
                 }
             };
@@ -145,8 +151,15 @@ impl ops::Add<Rat> for Rat {
             let rhs_num = match (self.den / den_gcd).checked_mul(rhs.num) {
                 Some(v) => v,
                 None => {
-                    rhs.num >>= 1;
-                    rhs.den >>= 1;
+                    if self.den == i64::MIN
+                        || (rhs.num != i64::MIN && self.den.abs() > rhs.num.abs())
+                    {
+                        self.num >>= 1;
+                        self.den >>= 1;
+                    } else {
+                        rhs.num >>= 1;
+                        rhs.den >>= 1;
+                    }
 
                     continue;
                 }
@@ -155,7 +168,9 @@ impl ops::Add<Rat> for Rat {
             let num = match lhs_num.checked_add(rhs_num) {
                 Some(v) => v,
                 None => {
-                    if self.num > rhs.num {
+                    if self.num == i64::MIN
+                        || (rhs.num != i64::MIN && self.num.abs() > rhs.num.abs())
+                    {
                         self.num >>= 1;
                         self.den >>= 1;
                     } else {
@@ -170,7 +185,9 @@ impl ops::Add<Rat> for Rat {
             let den = match (self.den / den_gcd).checked_mul(rhs.den) {
                 Some(v) => v,
                 None => {
-                    if self.den > rhs.den {
+                    if self.den == i64::MIN
+                        || (rhs.den != i64::MIN && self.den.abs() > rhs.den.abs())
+                    {
                         self.num >>= 1;
                         self.den >>= 1;
                     } else {
@@ -202,74 +219,15 @@ impl ops::Add<Rat> for Rat {
 impl ops::Sub<Rat> for Rat {
     type Output = Self;
 
-    fn sub(mut self, mut rhs: Self) -> Self {
-        loop {
-            let den_gcd = gcd(self.den, rhs.den);
-
-            let lhs_num = match (rhs.den / den_gcd).checked_mul(self.num) {
-                Some(v) => v,
-                None => {
-                    self.num >>= 1;
-                    self.den >>= 1;
-
-                    continue;
-                }
-            };
-
-            let rhs_num = match (self.den / den_gcd).checked_mul(rhs.num) {
-                Some(v) => v,
-                None => {
-                    rhs.num >>= 1;
-                    rhs.den >>= 1;
-
-                    continue;
-                }
-            };
-
-            let num = match lhs_num.checked_sub(rhs_num) {
-                Some(v) => v,
-                None => {
-                    if self.num > rhs.num {
-                        self.num >>= 1;
-                        self.den >>= 1;
-                    } else {
-                        rhs.num >>= 1;
-                        rhs.den >>= 1;
-                    }
-
-                    continue;
-                }
-            };
-
-            let den = match (self.den / den_gcd).checked_mul(rhs.den) {
-                Some(v) => v,
-                None => {
-                    if self.den > rhs.den {
-                        self.num >>= 1;
-                        self.den >>= 1;
-                    } else {
-                        rhs.num >>= 1;
-                        rhs.den >>= 1;
-                    }
-
-                    continue;
-                }
-            };
-
-            let new_gcd = gcd(num, den).abs();
-
-            if den > 0 {
-                return Self {
-                    num: num / new_gcd,
-                    den: den / new_gcd,
-                };
-            } else {
-                return Self {
-                    num: -num / new_gcd,
-                    den: -den / new_gcd,
-                };
-            }
+    fn sub(self, mut rhs: Self) -> Self {
+        if rhs.num == i64::MIN {
+            rhs.num >>= 1;
+            rhs.den >>= 1;
         }
+
+        rhs.num *= -1;
+
+        self + rhs
     }
 }
 
@@ -286,7 +244,9 @@ impl ops::Mul<Rat> for Rat {
 
             if let (Some(num), Some(den)) = (num, den) {
                 return Self { num, den };
-            } else if self.num > rhs.num {
+            } else if self.num == i64::MIN
+                || (rhs.num != i64::MIN && self.num.abs() > rhs.num.abs())
+            {
                 self.num >>= 1;
                 self.den >>= 1;
             } else {
@@ -324,7 +284,9 @@ impl ops::Div<Rat> for Rat {
 
             if let (Some(num), Some(den)) = (num, den) {
                 return Self { num, den };
-            } else if self.num > rhs.den {
+            } else if self.num == i64::MIN
+                || (rhs.den != i64::MIN && self.num.abs() > rhs.den.abs())
+            {
                 self.num >>= 1;
                 self.den >>= 1;
             } else {
@@ -378,6 +340,7 @@ pub fn gcd(mut a: i64, mut b: i64) -> i64 {
 mod tests {
     use super::gcd;
     use super::Rat;
+    use rand::prelude::*;
     use std::cmp::Ordering;
 
     #[test]
@@ -429,5 +392,39 @@ mod tests {
 
         assert_eq!(Ordering::Less, a.cmp(&b));
         assert_eq!(Ordering::Less, c.cmp(&b));
+    }
+
+    #[test]
+    fn overflow_fuzz() {
+        let mut rng = SmallRng::seed_from_u64(1);
+
+        fn create_random_rat(rng: &mut SmallRng) -> Rat {
+            Rat::from(rng.next_u64() as i64) / Rat::from(rng.next_u64() as i64)
+        }
+
+        for _ in 0..1000 {
+            let a = create_random_rat(&mut rng);
+            let b = create_random_rat(&mut rng);
+            let c = create_random_rat(&mut rng);
+
+            let af = f64::from(a);
+            let bf = f64::from(b);
+            let cf = f64::from(c);
+
+            let d = a + b + c;
+            let df = af + bf + cf;
+
+            let tol = 0.001;
+
+            assert!(
+                (f64::from(d) - df).abs() < tol,
+                "{} {} {} {} {}",
+                af,
+                bf,
+                cf,
+                df,
+                f64::from(d)
+            );
+        }
     }
 }

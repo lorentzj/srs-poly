@@ -45,47 +45,128 @@ impl<T: Field> UPoly<T> {
         match self.0.len() {
             0 | 1 => vec![],
             2 => {
-                if self.0[0] == T::zero() {
-                    vec![]
-                } else {
-                    vec![Root::Point(self.0[1].clone() * -1 / self.0[0].clone())]
-                }
+                vec![Root::Point(self.0[1].clone() * -1 / self.0[0].clone())]
             }
             _ => {
-                let derivative_roots = self.derivative().real_root_intervals(tolerance.clone());
+                let mut derivative_roots = self.derivative().real_root_intervals(tolerance.clone());
 
                 if derivative_roots.is_empty() {
-                    vec![]
-                } else {
-                    let mut new_roots = vec![];
-
-                    let first_derivative_root = derivative_roots[0].approx();
-
-                    match self.eval(&first_derivative_root).cmp(&T::zero()) {
-                        Ordering::Less => {
-                            if self.0[0] < T::zero() {
-                                // value here is same sign as -inf; no root
-                            } else {
-                                // probe backwards until we have a finite interval
-                                let mut lhs = T::from(-1);
-                                while self.eval(&(first_derivative_root.clone() + lhs.clone()))
-                                    < T::zero()
-                                {
-                                    lhs = lhs.clone() * T::from(2);
-                                }
-                                new_roots.push(self.refine_root_interval(
-                                    first_derivative_root.clone() + lhs,
-                                    first_derivative_root,
-                                    tolerance,
-                                ))
-                            }
-                        }
-                        Ordering::Greater => {}
-                        Ordering::Equal => {}
-                    }
-
-                    new_roots
+                    // add one arbitrary root to check (-inf, inf)
+                    derivative_roots.push(Root::Point(T::zero()));
                 }
+
+                let mut new_roots = vec![];
+
+                let first_derivative_root = derivative_roots[0].approx();
+
+                match self.eval(&first_derivative_root).cmp(&T::zero()) {
+                    Ordering::Less => {
+                        if (self.0[0] < T::zero()) ^ (self.0.len() % 2 == 0) {
+                            // value here is same sign as -inf; no root
+                        } else {
+                            // probe backwards until we have a finite interval
+                            let mut lhs = T::from(-1);
+                            while self.eval(&(first_derivative_root.clone() + lhs.clone()))
+                                < T::zero()
+                            {
+                                lhs = lhs.clone() * T::from(2);
+                            }
+                            new_roots.push(self.refine_root_interval(
+                                first_derivative_root.clone() + lhs,
+                                first_derivative_root,
+                                tolerance.clone(),
+                            ))
+                        }
+                    }
+                    Ordering::Greater => {
+                        if !((self.0[0] < T::zero()) ^ (self.0.len() % 2 == 0)) {
+                            // value here is same sign as -inf; no root
+                        } else {
+                            // probe backwards until we have a finite interval
+                            let mut lhs = T::from(-1);
+                            while self.eval(&(first_derivative_root.clone() + lhs.clone()))
+                                > T::zero()
+                            {
+                                lhs = lhs.clone() * T::from(2);
+                            }
+                            new_roots.push(self.refine_root_interval(
+                                first_derivative_root.clone() + lhs,
+                                first_derivative_root,
+                                tolerance.clone(),
+                            ))
+                        }
+                    }
+                    Ordering::Equal => new_roots.push(Root::Point(first_derivative_root)),
+                }
+
+                for i in 0..derivative_roots.len() - 1 {
+                    let interval_start = derivative_roots[i].approx();
+                    let interval_end = derivative_roots[i + 1].approx();
+
+                    let start_val = self.eval(&interval_start);
+                    let end_val = self.eval(&interval_end);
+
+                    if start_val == T::zero() {
+                        // no roots in this interval
+                    } else if end_val == T::zero() {
+                        new_roots.push(Root::Point(interval_end));
+                    } else if (start_val < T::zero() && end_val < T::zero())
+                        || (start_val > T::zero() && end_val > T::zero())
+                    {
+
+                        // no roots in this interval
+                    } else {
+                        new_roots.push(self.refine_root_interval(
+                            interval_start,
+                            interval_end,
+                            tolerance.clone(),
+                        ))
+                    }
+                }
+
+                let last_derivative_root = derivative_roots[derivative_roots.len() - 1].approx();
+
+                match self.eval(&last_derivative_root).cmp(&T::zero()) {
+                    Ordering::Less => {
+                        if self.0[0] < T::zero() {
+                            // value here is same sign as inf; no root
+                        } else {
+                            // probe backwards until we have a finite interval
+                            let mut lhs = T::from(1);
+                            while self.eval(&(last_derivative_root.clone() + lhs.clone()))
+                                < T::zero()
+                            {
+                                lhs = lhs.clone() * T::from(2);
+                            }
+                            new_roots.push(self.refine_root_interval(
+                                last_derivative_root.clone(),
+                                last_derivative_root + lhs,
+                                tolerance,
+                            ))
+                        }
+                    }
+                    Ordering::Greater => {
+                        if self.0[0] > T::zero() {
+                            // value here is same sign as inf; no root
+                        } else {
+                            // probe backwards until we have a finite interval
+                            let mut lhs = T::from(1);
+                            while self.eval(&(last_derivative_root.clone() + lhs.clone()))
+                                > T::zero()
+                            {
+                                lhs = lhs.clone() * T::from(2);
+                            }
+                            new_roots.push(self.refine_root_interval(
+                                last_derivative_root.clone(),
+                                last_derivative_root + lhs,
+                                tolerance,
+                            ));
+                        }
+                    }
+                    Ordering::Equal => {}
+                }
+
+                new_roots
             }
         }
     }
@@ -160,5 +241,25 @@ mod tests {
             linear.real_root_intervals(Rat::from(1) / Rat::from(10000)),
             vec![Root::Point(Rat::from(2) / Rat::from(3))]
         );
+    }
+
+    #[test]
+    fn big_root() {
+        let poly = UPoly(vec![
+            Rat::from(1),
+            Rat::from(-3),
+            Rat::from(-21),
+            Rat::from(43),
+            Rat::from(60),
+        ]);
+
+        let tol = Rat::from(1) / Rat::from(10000);
+        let roots = poly.real_root_intervals(tol);
+        let root_f64s: Vec<_> = roots.iter().map(|r| f64::from(r.approx())).collect();
+
+        assert!((root_f64s[0] + 4.).abs() < f64::from(tol));
+        assert!((root_f64s[1] + 1.).abs() < f64::from(tol));
+        assert!((root_f64s[2] - 3.).abs() < f64::from(tol));
+        assert!((root_f64s[3] - 5.).abs() < f64::from(tol));
     }
 }
