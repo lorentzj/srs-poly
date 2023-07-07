@@ -1,10 +1,13 @@
-use std::{hash::Hash, ops, fmt::Debug};
+use std::{cmp::Ord, fmt::Debug, hash::Hash, ops};
 
+// ordered field type
 pub trait Field = Clone
     + Hash
     + Debug
     + ToString
     + Eq
+    + Ord
+    + From<i64>
     + ops::Add<Output = Self>
     + ops::Sub<Output = Self>
     + ops::Mul<Output = Self>

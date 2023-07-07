@@ -1,4 +1,7 @@
-use std::ops;
+use std::{
+    cmp::{Ord, Ordering, PartialOrd},
+    ops,
+};
 
 use crate::field;
 
@@ -24,6 +27,61 @@ impl Rat {
 
     pub fn is_zero(&self) -> bool {
         self.num == 0
+    }
+}
+
+impl PartialOrd<Rat> for Rat {
+    // Required method
+    fn partial_cmp(&self, other: &Rat) -> Option<Ordering> {
+        if self == other {
+            Some(Ordering::Equal)
+        } else if (self.num < 0 && other.num >= 0) || (self.num == 0 && other.num > 0) {
+            Some(Ordering::Less)
+        } else if (self.num > 0 && other.num <= 0) || (self.num == 0 && other.num < 0) {
+            Some(Ordering::Greater)
+        } else {
+            let mut self_clone = *self;
+            let mut other_clone = *other;
+            loop {
+                let lhs = match self_clone.num.checked_mul(other_clone.den) {
+                    Some(v) => v,
+                    None => {
+                        if self_clone.num > other_clone.den {
+                            self_clone.num >>= 1;
+                            self_clone.den >>= 1;
+                        } else {
+                            other_clone.num >>= 1;
+                            other_clone.den >>= 1;
+                        }
+
+                        continue;
+                    }
+                };
+
+                let rhs = match self_clone.den.checked_mul(other_clone.num) {
+                    Some(v) => v,
+                    None => {
+                        if self_clone.den > other_clone.num {
+                            self_clone.num >>= 1;
+                            self_clone.den >>= 1;
+                        } else {
+                            other_clone.num >>= 1;
+                            other_clone.den >>= 1;
+                        }
+
+                        continue;
+                    }
+                };
+
+                return Some(lhs.cmp(&rhs));
+            }
+        }
+    }
+}
+
+impl Ord for Rat {
+    fn cmp(&self, other: &Rat) -> Ordering {
+        self.partial_cmp(other).unwrap()
     }
 }
 
@@ -253,12 +311,6 @@ impl ops::Mul<i64> for Rat {
     }
 }
 
-impl std::string::ToString for Rat {
-    fn to_string(&self) -> String {
-        f64::from(self.clone()).to_string()
-    }
-}
-
 impl ops::Div<Rat> for Rat {
     type Output = Self;
 
@@ -280,6 +332,12 @@ impl ops::Div<Rat> for Rat {
                 rhs.den >>= 1;
             }
         }
+    }
+}
+
+impl std::string::ToString for Rat {
+    fn to_string(&self) -> String {
+        f64::from(*self).to_string()
     }
 }
 
@@ -320,6 +378,7 @@ pub fn gcd(mut a: i64, mut b: i64) -> i64 {
 mod tests {
     use super::gcd;
     use super::Rat;
+    use std::cmp::Ordering;
 
     #[test]
     fn arith() {
@@ -355,5 +414,20 @@ mod tests {
         let b = 16 * 91;
 
         assert_eq!(16, gcd(a, b));
+    }
+
+    #[test]
+    fn ordering() {
+        let a = Rat::from(2) / Rat::from(3);
+        let b = Rat::from(1) / Rat::from(2);
+
+        assert_eq!(Ordering::Greater, a.cmp(&b));
+
+        let a = Rat::from(4);
+        let b = Rat::from(5);
+        let c = Rat::from(-6);
+
+        assert_eq!(Ordering::Less, a.cmp(&b));
+        assert_eq!(Ordering::Less, c.cmp(&b));
     }
 }

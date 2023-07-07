@@ -32,9 +32,3 @@ pub struct Tarski {
     pub forall: Vec<usize>,
     pub data: T,
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test() {}
-}

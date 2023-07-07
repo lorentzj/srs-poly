@@ -21,7 +21,7 @@ impl Poly<Rat> {
             Some(0)
         } else if self.terms.len() == 1 {
             if self.terms[0].vars.is_empty() {
-                self.terms[0].val.clone().try_into().ok()
+                self.terms[0].val.try_into().ok()
             } else {
                 None
             }
@@ -37,10 +37,7 @@ impl<T: Field> Poly<T> {
             terms: if val.is_zero() {
                 vec![]
             } else {
-                vec![Mono {
-                    val,
-                    vars: vec![],
-                }]
+                vec![Mono { val, vars: vec![] }]
             },
         }
     }
@@ -48,17 +45,17 @@ impl<T: Field> Poly<T> {
     pub fn var(var: usize, pow: u64) -> Self {
         if pow == 0 {
             Self {
-                terms: Vec::from(vec![Mono {
+                terms: vec![Mono {
                     val: T::one(),
                     vars: vec![],
-                }]),
+                }],
             }
         } else {
             Self {
-                terms: Vec::from(vec![Mono {
+                terms: vec![Mono {
                     val: T::one(),
                     vars: vec![(var, pow)],
-                }]),
+                }],
             }
         }
     }
@@ -176,7 +173,7 @@ impl Poly<Rat> {
         }
 
         for (i, Mono { val, vars }) in (self.terms).iter().rev().enumerate() {
-            let coef: f64 = val.clone().into();
+            let coef: f64 = (*val).into();
             if coef != 1. || vars.is_empty() {
                 if coef < 0. {
                     if coef == -1. && !vars.is_empty() {
