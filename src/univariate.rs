@@ -196,8 +196,24 @@ impl<T: Field> UPoly<T> {
 
             let mid = (start.clone() + end.clone()) / T::from(2);
             let mid_eval = self.eval(&mid);
+
+            if mid_eval == T::zero() {
+                return Root::Point(mid);
+            }
+
             let candidate1 = mid.clone() - mid_eval.clone() / start_deriv;
+            let candidate1_eval = self.eval(&candidate1);
+
+            if candidate1_eval == T::zero() {
+                return Root::Point(candidate1);
+            }
+
             let candidate2 = mid - mid_eval / end_deriv;
+            let candidate2_eval = self.eval(&candidate2);
+
+            if candidate2_eval == T::zero() {
+                return Root::Point(candidate2);
+            }
 
             let mut progress = false;
 
@@ -230,7 +246,14 @@ impl<T: Field> UPoly<T> {
 
         while end.clone() - start.clone() > tolerance {
             let mid = (start.clone() + end.clone()) / T::from(2);
-            if (self.eval(&mid) > T::zero()) == start_sign {
+
+            let mid_eval = self.eval(&mid);
+
+            if mid_eval == T::zero() {
+                return Root::Point(mid);
+            }
+
+            if (mid_eval > T::zero()) == start_sign {
                 start = mid;
             } else {
                 end = mid;
