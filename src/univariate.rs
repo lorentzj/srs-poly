@@ -50,7 +50,8 @@ impl<T: Field> UPoly<T> {
                 vec![Root::Point(self.0[1].clone() * -1 / self.0[0].clone())]
             }
             _ => {
-                let mut derivative_roots = self.derivative().real_root_intervals(tolerance.clone());
+                let derivative = self.derivative();
+                let mut derivative_roots = derivative.real_root_intervals(tolerance.clone());
 
                 if derivative_roots.is_empty() {
                     // add one arbitrary root to check (-inf, inf)
@@ -74,6 +75,7 @@ impl<T: Field> UPoly<T> {
                                 lhs = lhs.clone() * T::from(2);
                             }
                             new_roots.push(self.refine_root_interval(
+                                &derivative,
                                 first_derivative_root.clone() + lhs,
                                 first_derivative_root,
                                 tolerance.clone(),
@@ -92,6 +94,7 @@ impl<T: Field> UPoly<T> {
                                 lhs = lhs.clone() * T::from(2);
                             }
                             new_roots.push(self.refine_root_interval(
+                                &derivative,
                                 first_derivative_root.clone() + lhs,
                                 first_derivative_root,
                                 tolerance.clone(),
@@ -119,6 +122,7 @@ impl<T: Field> UPoly<T> {
                         // no roots in this interval
                     } else {
                         new_roots.push(self.refine_root_interval(
+                            &derivative,
                             interval_start,
                             interval_end,
                             tolerance.clone(),
@@ -141,6 +145,7 @@ impl<T: Field> UPoly<T> {
                                 lhs = lhs.clone() * T::from(2);
                             }
                             new_roots.push(self.refine_root_interval(
+                                &derivative,
                                 last_derivative_root.clone(),
                                 last_derivative_root + lhs,
                                 tolerance,
@@ -159,6 +164,7 @@ impl<T: Field> UPoly<T> {
                                 lhs = lhs.clone() * T::from(2);
                             }
                             new_roots.push(self.refine_root_interval(
+                                &derivative,
                                 last_derivative_root.clone(),
                                 last_derivative_root + lhs,
                                 tolerance,
@@ -173,8 +179,54 @@ impl<T: Field> UPoly<T> {
         }
     }
 
-    pub fn refine_root_interval(&self, mut start: T, mut end: T, tolerance: T) -> Root<T> {
+    pub fn refine_root_interval(
+        &self,
+        derivative: &UPoly<T>,
+        mut start: T,
+        mut end: T,
+        tolerance: T,
+    ) -> Root<T> {
         let start_sign = self.eval(&start) > T::zero();
+
+        let max_newton_iters = 10;
+        let mut newton_iters = 0;
+        while end.clone() - start.clone() > tolerance && newton_iters < max_newton_iters {
+            let start_deriv = derivative.eval(&start);
+            let end_deriv = derivative.eval(&end);
+
+            let mid = (start.clone() + end.clone()) / T::from(2);
+            let mid_eval = self.eval(&mid);
+            let candidate1 = mid.clone() - mid_eval.clone() / start_deriv;
+            let candidate2 = mid - mid_eval / end_deriv;
+
+            let mut progress = false;
+
+            if candidate1 > start && candidate1 < end {
+                let candidate1_sign = self.eval(&candidate1) > T::zero();
+                if candidate1_sign == start_sign {
+                    start = candidate1;
+                } else {
+                    end = candidate1;
+                }
+                progress = true;
+            }
+
+            if candidate2 > start && candidate2 < end {
+                let candidate2_sign = self.eval(&candidate2) > T::zero();
+                if candidate2_sign == start_sign {
+                    start = candidate2;
+                } else {
+                    end = candidate2;
+                }
+                progress = true;
+            }
+
+            if !progress {
+                break;
+            }
+
+            newton_iters += 1;
+        }
 
         while end.clone() - start.clone() > tolerance {
             let mid = (start.clone() + end.clone()) / T::from(2);
@@ -281,7 +333,7 @@ mod tests {
         let quadratic = UPoly(vec![Rat::from(1), Rat::from(0), Rat::from(-2)]);
         let tol = Rat::from(1) / Rat::from(10000);
         let refined = quadratic
-            .refine_root_interval(Rat::from(0), Rat::from(2), tol)
+            .refine_root_interval(&quadratic.derivative(), Rat::from(0), Rat::from(2), tol)
             .approx();
         let approx_zero = (2. - f64::from(refined) * f64::from(refined)).abs();
 
