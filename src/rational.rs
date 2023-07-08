@@ -236,6 +236,16 @@ impl ops::Mul<Rat> for Rat {
 
     fn mul(mut self, mut rhs: Self) -> Self {
         loop {
+            if self.num == i64::MIN || self.den == i64::MIN {
+                self.num >>= 1;
+                self.den >>= 1;
+            }
+
+            if rhs.num == i64::MIN || rhs.den == i64::MIN {
+                rhs.num >>= 1;
+                rhs.den >>= 1;
+            }
+
             let lhs_gcd = gcd(self.num, rhs.den);
             let rhs_gcd = gcd(rhs.num, self.den);
 
@@ -276,6 +286,16 @@ impl ops::Div<Rat> for Rat {
 
     fn div(mut self, mut rhs: Self) -> Self {
         loop {
+            if self.num == i64::MIN || self.den == i64::MIN {
+                self.num >>= 1;
+                self.den >>= 1;
+            }
+
+            if rhs.num == i64::MIN || rhs.den == i64::MIN {
+                rhs.num >>= 1;
+                rhs.den >>= 1;
+            }
+
             let num_gcd = gcd(self.num, rhs.num);
             let den_gcd = gcd(rhs.den, self.den);
 
@@ -306,6 +326,9 @@ impl std::string::ToString for Rat {
 // Euclid's algorithm
 pub fn gcd(mut a: i64, mut b: i64) -> i64 {
     let mut shift = 0;
+    if a == 0 || b == 0 {
+        return 1;
+    }
 
     while (a | b) & 0xF == 0 {
         a >>= 4;

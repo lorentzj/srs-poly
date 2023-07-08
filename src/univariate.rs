@@ -3,8 +3,10 @@ use std::cmp::Ordering;
 // thanks to Osvaldo Carvalho
 // https://www.researchgate.net/publication/320864673_A_simple_recursive_algorithm_to_find_all_real_roots_of_a_polynomial
 use crate::field::Field;
+use crate::rational::Rat;
 
-pub struct UPoly<T: Field>(Vec<T>);
+#[derive(Debug)]
+pub struct UPoly<T: Field>(pub Vec<T>);
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Root<T: Field> {
@@ -187,6 +189,58 @@ impl<T: Field> UPoly<T> {
     }
 }
 
+impl UPoly<Rat> {
+    pub fn real_roots(&self, tolerance: f64) -> Vec<f64> {
+        let mut tolerance_rat = Rat::from(1);
+        while f64::from(tolerance_rat) > tolerance {
+            tolerance_rat = tolerance_rat / Rat::from(10);
+        }
+
+        self.real_root_intervals(tolerance_rat)
+            .iter()
+            .map(|root| f64::from(root.approx()))
+            .collect()
+    }
+}
+
+#[macro_export]
+macro_rules! univariate {
+    ( $($t:tt)* ) => ({
+        use $crate::univariate::UPoly;
+        use $crate::rational::Rat;
+        use $crate::field::Field;
+
+        let system = $crate::system! { $($t)* };
+
+        if system.members.len() != 1 {
+            panic!("pass 1 polynomial to univariate macro")
+        }
+
+        if system.var_dict.len() > 1 {
+            panic!("use at most 1 variable in univariate macro")
+        }
+
+        let mut coefs = vec![];
+
+        let mut curr_pow = 0;
+        for term in &system.members[0].terms {
+            if term.vars.is_empty() {
+                coefs.push(term.val);
+                curr_pow += 1;
+            } else {
+                while curr_pow < term.vars[0].1 {
+                    coefs.push(Rat::zero());
+                    curr_pow += 1
+                }
+                coefs.push(term.val);
+                curr_pow += 1;
+            }
+        }
+
+        UPoly(coefs.into_iter().rev().collect::<Vec<_>>())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Root, UPoly};
@@ -255,11 +309,11 @@ mod tests {
 
         let tol = Rat::from(1) / Rat::from(10000);
         let roots = poly.real_root_intervals(tol);
-        let root_f64s: Vec<_> = roots.iter().map(|r| f64::from(r.approx())).collect();
+        let roots_f: Vec<_> = roots.iter().map(|r| f64::from(r.approx())).collect();
 
-        assert!((root_f64s[0] + 4.).abs() < f64::from(tol));
-        assert!((root_f64s[1] + 1.).abs() < f64::from(tol));
-        assert!((root_f64s[2] - 3.).abs() < f64::from(tol));
-        assert!((root_f64s[3] - 5.).abs() < f64::from(tol));
+        assert!((roots_f[0] + 4.).abs() < f64::from(tol));
+        assert!((roots_f[1] + 1.).abs() < f64::from(tol));
+        assert!((roots_f[2] - 3.).abs() < f64::from(tol));
+        assert!((roots_f[3] - 5.).abs() < f64::from(tol));
     }
 }
