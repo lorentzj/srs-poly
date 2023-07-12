@@ -124,6 +124,38 @@ impl<T: Field> Poly<T> {
 
         coefs
     }
+
+    pub fn from_uni_fmt(p: Vec<Self>, var: usize) -> Self {
+        let mut new = Poly { terms: vec![] };
+        let deg = p.len() - 1;
+
+        for (i, term) in p.into_iter().enumerate() {
+            if i == deg {
+                new = new + term
+            } else {
+                let var_pow = Poly { terms: vec![Mono { val: T::one(), vars: vec![(var, (deg - i) as u64)] }] };
+
+                new = new + term * var_pow;
+            }
+        }
+
+        new
+    }
+
+    pub fn eval(&self, var: usize, val: T) -> Self {
+        let mut new = Poly { terms: vec![] };
+        let mut val_pow = T::one();
+        for mut coef in self.coefs(var).into_iter().rev() {
+            for term in &mut coef.terms {
+                term.val = term.val.clone() * val_pow.clone();
+            }
+            new = new + coef;
+
+            val_pow = val_pow * val.clone();
+        }
+
+        new
+    }
 }
 
 impl Poly<Rat> {
@@ -239,6 +271,35 @@ mod tests {
                     .iter()
                     .map(|p| p.format(&var_dict))
                     .collect::<Vec<_>>()
+            )
+        );
+
+        assert_eq!(g, Poly::from_uni_fmt(g.coefs(0), 0));
+    }
+
+    #[test]
+    fn eval() {
+        let var_dict = vec!["x".to_string(), "y".to_string(), "z".to_string()];
+
+        let a: Poly<Rat> = Poly::var(0, 4);
+        let b: Poly<Rat> = Poly::var(0, 2) * Poly::constant(Rat::from(3));
+        let c: Poly<Rat> = Poly::var(0, 2) * Poly::var(2, 3) * Poly::constant(Rat::from(5));
+        let d: Poly<Rat> = Poly::var(1, 1) * Poly::var(0, 1) * Poly::constant(Rat::from(4));
+        let e: Poly<Rat> = Poly::var(2, 1);
+        let f: Poly<Rat> = Poly::constant(Rat::from(2));
+
+        let g = a + b + c + d + e + f;
+
+        assert_eq!(
+            "5x^2z^3 + x^4 + 3x^2 + 4xy + z + 2",
+            format!("{}", g.format(&var_dict))
+        );
+
+        assert_eq!(
+            "20z^3 + 8y + z + 30",
+            format!(
+                "{}",
+                g.eval(0, Rat::from(2)).format(&var_dict)
             )
         );
     }

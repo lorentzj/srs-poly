@@ -4,17 +4,14 @@ use crate::rational::Rat;
 #[derive(Debug, Clone)]
 pub enum Cmp {
     Gt,
-    GtEq,
     Eq,
-    LtEq,
     Lt,
 }
 
 #[derive(Debug, Clone)]
 pub struct Constraint {
     pub value: Poly<Rat>,
-    pub cmp_zero: Cmp,
-    pub provenance: Vec<usize>,
+    pub cmp_zero: Cmp
 }
 
 #[derive(Debug, Clone)]

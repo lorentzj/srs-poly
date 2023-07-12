@@ -1,8 +1,7 @@
-use std::{cmp::Ord, fmt::Debug, hash::Hash, ops};
+use std::{cmp::Ord, fmt::Debug, ops};
 
 // ordered field type
 pub trait Field = Clone
-    + Hash
     + Debug
     + ToString
     + Eq

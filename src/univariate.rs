@@ -5,10 +5,10 @@ use std::cmp::Ordering;
 use crate::field::Field;
 use crate::rational::Rat;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UPoly<T: Field>(pub Vec<T>);
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Root<T: Field> {
     Point(T),
     Interval(T, T),
